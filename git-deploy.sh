@@ -24,7 +24,7 @@ if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1; then
     fi
 
     # OPTIONAL - Run custom script
-    npm run predeploy && npm run deploy
+    rm -rf dist && npm run build && npm run deploy
 
     # Add all changes to git
     git add .
