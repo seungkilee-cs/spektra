@@ -1,47 +1,95 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import "../styles/FileUpload.css";
 import { debugLog, debugError } from "../utils/debug";
 
 const FileUpload = () => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = useRef(null);
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (
-      selectedFile &&
+  const handleFiles = (selectedFiles) => {
+    const validFiles = Array.from(selectedFiles).filter((file) =>
       ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac"].includes(
-        selectedFile.type,
-      )
-    ) {
-      setFile(selectedFile);
-      debugLog("File uploaded successfully. Details:", {
-        fileObj: selectedFile,
-        name: selectedFile.name,
-        type: selectedFile.type,
-        size: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`,
-        lastModified: new Date(selectedFile.lastModified).toLocaleString(),
-      });
-    } else {
-      debugError("Invalid file type selected");
-      alert("Please select an mp3, m4a, or flac file.");
+        file.type,
+      ),
+    );
+
+    if (validFiles.length !== selectedFiles.length) {
+      debugError("Some files were invalid and not added");
     }
+
+    setFiles((prevFiles) => [...prevFiles, ...validFiles]);
+    validFiles.forEach((file) => {
+      debugLog("File added successfully. Details:", {
+        name: file.name,
+        type: file.type,
+        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        lastModified: new Date(file.lastModified).toLocaleString(),
+      });
+    });
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleChange = (e) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      handleFiles(e.target.files);
+    }
+  };
+
+  const onButtonClick = () => {
+    inputRef.current.click();
   };
 
   return (
     <div className="file-upload">
-      <label htmlFor="file-input" className="file-input-label">
-        Choose Audio File
+      <form onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
         <input
-          id="file-input"
+          ref={inputRef}
           type="file"
+          multiple
+          onChange={handleChange}
           accept=".mp3,.m4a,.flac"
-          onChange={handleFileChange}
         />
-      </label>
-      {file && (
-        <div className="file-info">
-          <p>File: {file.name}</p>
-          <p>Size: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+        <div
+          className={`drop-area ${dragActive ? "drag-active" : ""}`}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+        >
+          <p>Drag and drop your audio files here or</p>
+          <button type="button" onClick={onButtonClick}>
+            Upload files
+          </button>
+        </div>
+      </form>
+      {files.length > 0 && (
+        <div className="file-list">
+          {files.map((file, index) => (
+            <div className="file-item" key={index}>
+              <p>{file.name}</p>
+              <p>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

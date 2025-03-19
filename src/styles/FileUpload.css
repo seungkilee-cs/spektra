@@ -1,40 +1,75 @@
 .file-upload {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.file-upload form {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 24px;
-    background-color: #2a2a2a;
+}
+
+.file-upload .drop-area {
+    background-color: #333333; /* dark grey background */
+    border: 2px dashed #cccccc;
     border-radius: 12px;
-    transition: background-color 0.3s ease;
-}
-
-.file-input-label {
-    display: inline-flex;
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    padding: 12px 24px;
-    background-color: #3a3a3a;
-    color: #ffffff;
-    border-radius: 8px;
+    justify-content: center;
+    transition:
+        background-color 0.3s ease,
+        border-color 0.3s ease;
+}
+
+.file-upload .drop-area.drag-active {
+    background-color: #e0e0e0; /* Slightly darker grey when dragging */
+    border-color: #007bff; /* Blue border to indicate active state */
+}
+
+.file-upload .drop-area p {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.file-upload .drop-area button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #474747; /* Darker grey button */
+    color: #ffffff; /* White text for contrast */
+    border: none;
+    border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
-    font-weight: 500;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
 }
 
-.file-input-label:hover {
-    background-color: #4a4a4a;
+.file-upload .drop-area button:hover {
+    background-color: #000000; /* Black on hover for emphasis */
 }
 
-.file-input-label input[type="file"] {
-    display: none;
+.file-upload input[type="file"] {
+    display: none; /* Hide the default file input field */
 }
 
-.file-info {
-    margin-top: 16px;
-    text-align: center;
-    color: #cccccc;
+.file-upload .file-list {
+    margin-top: 20px;
 }
 
-.file-info p {
-    margin: 4px 0;
-    font-size: 14px;
+.file-upload .file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #333333; /* Light grey for file item background */
+    border-radius: 8px; /* Rounded corners for consistency */
+    margin-bottom: 10px;
+}
+
+.file-upload .file-item p {
+    margin: 0; /* Remove default margins for cleaner layout */
 }
