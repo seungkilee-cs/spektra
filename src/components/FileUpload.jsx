@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import "../styles/FileUpload.css";
 import { debugLog, debugError } from "../utils/debug";
 
-const FileUpload = () => {
+const FileUpload = ({ onFileSelect }) => {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
@@ -26,6 +26,7 @@ const FileUpload = () => {
         size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
         lastModified: new Date(file.lastModified).toLocaleString(),
       });
+      onFileSelect(file); // Call the prop function for each valid file
     });
   };
 

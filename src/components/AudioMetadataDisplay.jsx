@@ -6,11 +6,11 @@ const AudioMetadataDisplay = ({ metadata }) => {
 
   return (
     <div className="audio-metadata">
-      <p>Bitrate: {metadata.bitrate} bps</p>
+      <p>Bitrate: {metadata.bitrate}</p>
       <p>Sample Rate: {metadata.sampleRate} Hz</p>
-      <p>Bits Per Sample: {metadata.bitsPerSample}</p>
+      <p>Bits Per Sample: {metadata.bitsPerSample} bits</p>
       <p>Codec: {metadata.codec}</p>
-      <p>Duration: {metadata.duration.toFixed(2)} seconds</p>
+      <p>Duration: {metadata.duration} seconds</p>
     </div>
   );
 };
