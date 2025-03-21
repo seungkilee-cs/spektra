@@ -11,12 +11,12 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (fileUploaded) {
-      // Draw a blank canvas with a border when a file is uploaded
-      ctx.strokeStyle = "#cccccc";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    // Draw a blank canvas with a border when a file is uploaded
+    ctx.strokeStyle = "#cccccc";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
+    if (fileUploaded) {
       // Add text to indicate spectrum will be shown here
       ctx.fillStyle = "#cccccc";
       ctx.font = "20px Arial";
