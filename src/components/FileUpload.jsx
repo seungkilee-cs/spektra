@@ -3,31 +3,28 @@ import "../styles/FileUpload.css";
 import { debugLog, debugError } from "../utils/debug";
 
 const FileUpload = ({ onFileSelect }) => {
-  const [files, setFiles] = useState([]);
+  const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
 
   const handleFiles = (selectedFiles) => {
-    const validFiles = Array.from(selectedFiles).filter((file) =>
+    const selectedFile = selectedFiles[0];
+    if (
       ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac"].includes(
-        file.type,
-      ),
-    );
-
-    if (validFiles.length !== selectedFiles.length) {
-      debugError("Some files were invalid and not added");
-    }
-
-    setFiles((prevFiles) => [...prevFiles, ...validFiles]);
-    validFiles.forEach((file) => {
+        selectedFile.type,
+      )
+    ) {
+      setFile(selectedFile);
       debugLog("File added successfully. Details:", {
-        name: file.name,
-        type: file.type,
-        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        lastModified: new Date(file.lastModified).toLocaleString(),
+        name: selectedFile.name,
+        type: selectedFile.type,
+        size: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`,
+        lastModified: new Date(selectedFile.lastModified).toLocaleString(),
       });
-      onFileSelect(file); // Call the prop function for each valid file
-    });
+      onFileSelect(selectedFile);
+    } else {
+      debugError("Invalid file type");
+    }
   };
 
   const handleDrag = (e) => {
@@ -66,7 +63,6 @@ const FileUpload = ({ onFileSelect }) => {
         <input
           ref={inputRef}
           type="file"
-          multiple
           onChange={handleChange}
           accept=".mp3,.m4a,.flac"
         />
@@ -77,20 +73,18 @@ const FileUpload = ({ onFileSelect }) => {
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          <p>Drag and drop your audio files here or</p>
+          <p>Drag and drop your audio file here or</p>
           <button type="button" onClick={onButtonClick}>
-            Upload files
+            Upload file
           </button>
         </div>
       </form>
-      {files.length > 0 && (
+      {file && (
         <div className="file-list">
-          {files.map((file, index) => (
-            <div className="file-item" key={index}>
-              <p>{file.name}</p>
-              <p>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-            </div>
-          ))}
+          <div className="file-item">
+            <p>{file.name}</p>
+            <p>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+          </div>
         </div>
       )}
     </div>
