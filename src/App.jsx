@@ -5,7 +5,6 @@ import SpectrumCanvas from "./components/SpectrumCanvas";
 import { extractAudioMetadata } from "./utils/audioProcess";
 import { debugLog, debugError } from "./utils/debug";
 import "./App.css";
-import SpectrumAnalyzer from "./components/SpectrumAnalyzer";
 
 function App() {
   const [file, setFile] = useState(null);
@@ -21,7 +20,7 @@ function App() {
           selectedFile.type,
         )
       ) {
-        console.error("Unsupported file type:", selectedFile.type);
+        debugError("Unsupported file type:", selectedFile.type);
         alert("Please select a valid audio file (mp3, m4a, flac).");
         return;
       }
