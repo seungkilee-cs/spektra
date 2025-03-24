@@ -1,6 +1,6 @@
 // Main FFT function
 function fft(signal) {
-  // Implement FFT algorithm here
+  // Convert a signal from time domain to frequency domain
 }
 
 // Inverse FFT function
@@ -8,32 +8,51 @@ function ifft(frequencyData) {
   // Implement inverse FFT algorithm here
 }
 
-// Helper function for bit reversal
 function bitReverse(index, totalBits) {
-  // Implement bit reversal logic here
+  // Reverses the bits of 'index' assuming 'totalBits' bits
+  // Example:
+  // bitReverse(1, 3) = 4 (001 becomes 100 in binary)
+  // bitReverse(3, 3) = 6 (011 becomes 110 in binary)
+  // bitReverse(5, 4) = 10 (0101 becomes 1010 in binary)
+  // bitReverse(0, 4) = 0 (0000 becomes 0000 in binary)
+  //
+  // if binary is not containable with given total bits, throw error
+  if (index >= 1 << totalBits) {
+    throw new Error("Index too large for specified bits");
+  } else {
+    // convert index into binary
+    let binaryString = index.toString(2).padStart(totalBits, "0");
+    // reverse the bits
+    let reversedBinary = binaryString.split("").reverse().join("");
+    // return binary to decimal before we return
+    return parseInt(reversedBinary, 2);
+  }
 }
 
-// Complex number operations
 const Complex = {
   add: function (a, b) {
-    // Addition of complex numbers
+    // Adds two complex numbers
+    // (a.real + a.imag*i) + (b.real + b.imag*i)
   },
   subtract: function (a, b) {
-    // Subtraction of complex numbers
+    // Subtracts two complex numbers
+    // (a.real + a.imag*i) - (b.real + b.imag*i)
   },
   multiply: function (a, b) {
-    // Multiplication of complex numbers
+    // Multiplies two complex numbers
+    // (a.real + a.imag*i) * (b.real + b.imag*i)
   },
 };
 
-// Utility function to generate twiddle factors
 function generateTwiddleFactors(N) {
-  // Generate twiddle factors for FFT
+  // Generates N complex roots of unity
+  // W_N^k = e^(-2πik/N) for k = 0, 1, ..., N-1
 }
 
-// Function to perform butterfly operation
 function butterflyOperation(a, b, twiddle) {
-  // Implement butterfly operation
+  // Performs the basic FFT butterfly operation
+  // a' = a + twiddle * b
+  // b' = a - twiddle * b
 }
 
 // Export the functions
