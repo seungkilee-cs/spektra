@@ -33,14 +33,26 @@ const Complex = {
   add: function (a, b) {
     // Adds two complex numbers
     // (a.real + a.imag*i) + (b.real + b.imag*i)
+    return {
+      real: a.real + b.real,
+      imag: a.imag + b.imag,
+    };
   },
   subtract: function (a, b) {
     // Subtracts two complex numbers
     // (a.real + a.imag*i) - (b.real + b.imag*i)
+    return {
+      real: a.real - b.real,
+      imag: a.imag - b.imag,
+    };
   },
   multiply: function (a, b) {
     // Multiplies two complex numbers
     // (a.real + a.imag*i) * (b.real + b.imag*i)
+    return {
+      real: a.real * b.real - a.imag * b.imag,
+      imag: a.real * b.imag - a.imag * b.real,
+    };
   },
 };
 
