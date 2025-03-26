@@ -1,3 +1,4 @@
+// https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
 // Main FFT function
 function fft(signal) {
   // Convert a signal from time domain to frequency domain
@@ -57,14 +58,28 @@ const Complex = {
 };
 
 function generateTwiddleFactors(N) {
-  // Generates N complex roots of unity
+  // Generates N complex roots of unity, for every points in FFT
+  // Used to combine Discrete Fourier Transforms into a larger one -> This is where divide and conquer comes in
+  // We compute the results of broken down signals for this DFT, with Twiddle Factor on these points
   // W_N^k = e^(-2πik/N) for k = 0, 1, ..., N-1
+  const twiddleFactors = [];
+  for (let k = 0; k < N; k++) {
+    const angle = (-2 * Math.PI * k) / N;
+    twiddleFactors.push({
+      real: Math.cos(angle),
+      imag: Math.sine(angle),
+    });
+  }
+  return twiddleFactors;
 }
 
 function butterflyOperation(a, b, twiddle) {
   // Performs the basic FFT butterfly operation
-  // a' = a + twiddle * b
-  // b' = a - twiddle * b
+  // scale and align the a' and b'
+  return {
+    upper: Complex.add(a, Complex.multiply(twiddle, b)),
+    lower: Complex.subtract(a, Complex.multiply(twiddle, b)),
+  };
 }
 
 // Export the functions
