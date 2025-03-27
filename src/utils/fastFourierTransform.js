@@ -1,7 +1,14 @@
 // https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
-// Main FFT function
+// Main FFT function with Cooley-Tukey Algorithm
 function fft(signal) {
   // Convert a signal from time domain to frequency domain
+  const N = signal.length;
+  const levels = Math.log2(N); //passed into total bits for the reverse function
+
+  // Bit Reversal Permutation
+  let X = signal.map((_, i) => signal[bitReverse(i, levels)]);
+
+  // Cooley-Tukey Iterations, where the magic happens
 }
 
 // Inverse FFT function
