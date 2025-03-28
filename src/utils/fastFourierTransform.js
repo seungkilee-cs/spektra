@@ -1,5 +1,5 @@
 // https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
-// Main FFT function with Cooley-Tukey Algorithm
+// Main FFT function with radix-2 Cooley-Tukey Algorithm
 function fft(signal) {
   // Convert a signal from time domain to frequency domain
   const N = signal.length;
@@ -9,6 +9,28 @@ function fft(signal) {
   let X = signal.map((_, i) => signal[bitReverse(i, levels)]);
 
   // Cooley-Tukey Iterations, where the magic happens
+  // Divide into stages -> break down for DFT computations
+  for (let stage = 1; stage <= levels; stage++) {
+    const span = 1 << stage; // Bitwise Left Shift. 2^stage operation.
+    const half = span >>> 1; // Bitwise Right Shift with Zero Fill. span/2, midpoint for butterflyOperation
+    const twiddleFactors = generateTwiddleFactors(span);
+
+    for (let group = 0; group < N; group += span) {
+      for (let k = 0; k < half; k++) {
+        const twiddle = twiddleFactors[k];
+        const i = group + k;
+        const j = i + half;
+
+        const a = X[i];
+        const b = X[j];
+        // Here we combine the results after dividing them
+        const { upper, lower } = butterflyOperation(a, b, twiddle);
+        X[i] = upper;
+        X[j] = lower;
+      }
+    }
+  }
+  return X;
 }
 
 // Inverse FFT function
