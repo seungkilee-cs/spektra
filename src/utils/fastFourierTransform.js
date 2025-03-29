@@ -35,7 +35,20 @@ function fft(signal) {
 
 // Inverse FFT function
 function ifft(frequencyData) {
-  // Implement inverse FFT algorithm here
+  // Convert frequency to time domain
+  const N = frequencyData.length;
+  // Conjugate the input
+  const conjugated = frequencyData.map((c) => ({
+    real: c.real,
+    imag: -c.imag,
+  }));
+  // FFT on the conjugated data
+  const transformed = fft(conjugated);
+  // Reconjugate and scale by N
+  return transformed.map((c) => ({
+    real: c.real / N,
+    imag: -c.imag / N,
+  }));
 }
 
 function bitReverse(index, totalBits) {
@@ -96,7 +109,7 @@ function generateTwiddleFactors(N) {
     const angle = (-2 * Math.PI * k) / N;
     twiddleFactors.push({
       real: Math.cos(angle),
-      imag: Math.sine(angle),
+      imag: Math.sin(angle),
     });
   }
   return twiddleFactors;
