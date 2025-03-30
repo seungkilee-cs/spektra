@@ -1,4 +1,4 @@
-import { fft, ifft, Complex } from "../utils/fastFourierTransform.js";
+import { fft, ifft, Complex } from "../../utils/fastFourierTransform.js";
 
 function testFFT() {
   // Test Case: Simple Signal

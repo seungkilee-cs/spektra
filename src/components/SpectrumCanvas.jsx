@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { fft, ifft, Complex } from "../utils/fastFourierTransform";
 import "../styles/SpectrumCanvas.css";
 
 const SpectrumCanvas = ({ fileUploaded }) => {

@@ -6,16 +6,16 @@
 - [x] Canvas element for future spectrum visualization
 
 ## Features to be Implemented
-### - [ ]  1. Fast Fourier Transform (FFT) Analysis of Audio Data
-- [ ] Decode loaded audio file into time-domain samples.
-- [ ] Normalize the audio samples to a range suitable for FFT processing.
-- [ ] Implement an FFT algorithm using a library (e.g., Web Audio API, FFT.js, or DSP.js).
-- [ ] Extract frequency-domain data (magnitude and phase) from the FFT results.
-- [ ] Apply windowing functions (e.g., Hamming, Hann) to reduce spectral leakage.
-- [ ] Verify FFT output by logging or visualizing raw frequency data.
+### - [x]  1. Fast Fourier Transform (FFT) Analysis of Audio Data
+- [x] Decode loaded audio file into time-domain samples.
+- [x] Normalize the audio samples to a range suitable for FFT processing.
+- [x] Implement an FFT algorithm using a library (e.g., Web Audio API, FFT.js, or DSP.js).
+- [x] Extract frequency-domain data (magnitude and phase) from the FFT results.
+- [x] Apply windowing functions (e.g., Hamming, Hann) to reduce spectral leakage.
+- [x] Verify FFT output by logging or visualizing raw frequency data.
 
 ### - [ ] 2. Real-Time Visualization of Frequency Spectrum on Canvas
-- [ ] Set up a canvas element for drawing the spectrum.
+- [x] Set up a canvas element for drawing the spectrum.
 - [ ] Use the FFT output to calculate magnitudes for each frequency bin.
 - [ ] Map frequency magnitudes to bar heights or colors on the canvas.
 - [ ] Continuously update the canvas with new FFT results in real-time.

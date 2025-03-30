@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import FileUpload from "./components/FileUpload";
 import AudioMetadataDisplay from "./components/AudioMetadataDisplay";
 import SpectrumCanvas from "./components/SpectrumCanvas";
-import { extractAudioMetadata } from "./utils/audioProcess";
+import { extractAudioMetadata } from "./utils/formatMetadata";
 import { debugLog, debugError } from "./utils/debug";
 import "./App.css";
 
