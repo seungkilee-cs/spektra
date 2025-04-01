@@ -22,10 +22,16 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
   const arrayBuffer = await file.arrayBuffer();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   // first channel
-  const chanelData = audioBuffer.gerChanelData(0);
+  const channelData = audioBuffer.gerChanelData(0);
 
   // Spectogram Params
+  const windowSize = fftSize;
+  const hopSize = Math.floor(window * (1 - overlap));
+  const numWindows = Math.floor((channelData.lenght - windowSize) / hopSize);
+
+  // Spectogram data
   const spectogramData = [];
+  for (i = 0; i < numWindows; i++) {}
 
   return spectogramData;
 }
