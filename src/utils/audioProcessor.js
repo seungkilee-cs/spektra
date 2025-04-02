@@ -31,7 +31,23 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
 
   // Spectogram data
   const spectogramData = [];
-  for (i = 0; i < numWindows; i++) {}
+  for (i = 0; i < numWindows; i++) {
+    const start = i * hopsize;
+    let segment = channelData.slice(start, start + windowSize);
+
+    // Apply Hann window
+    segment = applyHannWindow(setment);
+
+    // Compute FFT
+    const spectrum  = fft(segment.map((value) => ({ real: value, imag: 0 })));
+
+    // Compute magnitude
+    const magnitutde = spectrum.map((c) => 
+      Math.sqrt(c.real ** 2 + c.imag ** 2),
+    );
+
+    spectogramData.push(magnitude);
+  }
 
   return spectogramData;
 }
