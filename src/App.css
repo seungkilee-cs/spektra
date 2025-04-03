@@ -3,6 +3,12 @@
     margin: 0 auto;
     padding: 2rem;
     text-align: center;
+    --text-color: #ffffff;
+    --font-family:  "Courier New", Courier, monospace;
+}
+
+.App {
+    font-family: var(--font-family); 
 }
 
 .App h1 {
