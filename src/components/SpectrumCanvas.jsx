@@ -20,7 +20,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     if (fileUploaded) {
       // Add text to indicate spectrum will be shown here
       ctx.fillStyle = "#cccccc";
-      ctx.font = "20px Arial";
+      ctx.font = "1rem Courier New";
       ctx.textAlign = "center";
       ctx.fillText(
         "Spectrum will be displayed here",
@@ -30,7 +30,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     } else {
       // Draw a message when no file is uploaded
       ctx.fillStyle = "#cccccc";
-      ctx.font = "20px Arial";
+      ctx.font = "1rem Courier New";
       ctx.textAlign = "center";
       ctx.fillText(
         "Upload an audio file to see the spectrum",
