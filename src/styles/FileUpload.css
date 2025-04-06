@@ -1,75 +1,75 @@
 .file-upload {
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 .file-upload form {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .file-upload .drop-area {
-    background-color: #333333; /* dark grey background */
-    border: 2px dashed #cccccc;
-    border-radius: 12px;
-    width: 100%;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    transition:
-        background-color 0.3s ease,
-        border-color 0.3s ease;
+  background-color: #333333; /* dark grey background */
+  border: 0.125rem dashed #cccccc;
+  border-radius: 0.1rem;
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .file-upload .drop-area.drag-active {
-    background-color: #e0e0e0; /* Slightly darker grey when dragging */
-    border-color: #007bff; /* Blue border to indicate active state */
+  background-color: #e0e0e0; /* Slightly darker grey when dragging */
+  border-color: #007bff; /* Blue border to indicate active state */
 }
 
 .file-upload .drop-area p {
-    font-size: 16px;
-    margin-bottom: 10px;
+  font-size: 1rem;
+  margin-bottom: 0.625rem;
 }
 
 .file-upload .drop-area button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background-color: #474747; /* Darker grey button */
-    color: #ffffff; /* White text for contrast */
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition:
-        background-color 0.3s ease,
-        transform 0.2s ease;
+  padding: 0.625rem 1.25rem;
+  font-size: 16px;
+  background-color: #474747; /* Darker grey button */
+  color: #ffffff; /* White text for contrast */
+  border: none;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition:
+    background-color 0.3s ease,
+    transform 0.2s ease;
 }
 
 .file-upload .drop-area button:hover {
-    background-color: #000000; /* Black on hover for emphasis */
+  background-color: #000000; /* Black on hover for emphasis */
 }
 
 .file-upload input[type="file"] {
-    display: none; /* Hide the default file input field */
+  display: none; /* Hide the default file input field */
 }
 
 .file-upload .file-list {
-    margin-top: 20px;
+  margin-top: 1.3rem;
 }
 
 .file-upload .file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    background-color: #333333; /* Light grey for file item background */
-    border-radius: 8px; /* Rounded corners for consistency */
-    margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem;
+  background-color: #333333; /* Light grey for file item background */
+  border-radius: 0.5rem; /* Rounded corners for consistency */
+  margin-bottom: 0.625rem;
 }
 
 .file-upload .file-item p {
-    margin: 0; /* Remove default margins for cleaner layout */
+  margin: 0; /* Remove default margins for cleaner layout */
 }
