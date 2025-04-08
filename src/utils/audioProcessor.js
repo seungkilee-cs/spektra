@@ -17,17 +17,8 @@ function applyHannWindow(segment) {
 }
 
 export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
-  // // audio file handling for
-  // const audioContext = new AudioContext();
-  // // const arrayBuffer = await file.arrayBuffer();
-  // const arrayBuffer = await new Response(file).arrayBuffer();
-  //
-  // const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-  // // first channel
-  // const channelData = audioBuffer.gerChanelData(0);
-
   // Verify file type first
-  console.log(file);
+  console.log("file:", file);
   if (!file.type.startsWith("audio/")) {
     throw new Error(`Browser reports invalid type: ${file.type}`);
   }
@@ -40,6 +31,8 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
   } catch (err) {
     throw new Error(`Failed to read file: ${err.message}`);
   }
+
+  console.log("arrayBuffer:", arrayBuffer);
 
   // Create AudioContext and decode
   const audioContext = new AudioContext();
@@ -54,6 +47,9 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
       `Audio decoding failed: ${err.message}. Supported formats: WAV, MP3, OGG`,
     );
   }
+
+  console.log("audioContext:", audioContext);
+  console.log("audioBuffer:", audioBuffer);
 
   const channelData = audioBuffer.getChannelData(0);
 
