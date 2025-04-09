@@ -44,7 +44,7 @@ function App() {
       <h4>Static Spectrum Analyzer</h4>
       <FileUpload onFileSelect={handleFileSelect} />
       <AudioMetadataDisplay metadata={metadata} />
-      <SpectrumCanvas fileUploaded={file} />
+      {/* <SpectrumCanvas fileUploaded={file} /> */}
     </div>
   );
 }
