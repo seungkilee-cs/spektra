@@ -1,0 +1,10 @@
+[package]
+name = "rust-audio-processor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wasm-bindgen = "0.2" # Web Assembly Binding
+
+[dev-dependencies]
+assert_approx_eq = "1.1" # Numeric accuracy testing
