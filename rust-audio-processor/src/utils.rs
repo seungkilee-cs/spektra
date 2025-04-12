@@ -1,4 +1,5 @@
 // utility for math
+use std::f32::consts::PI;
 
 // Bit Reversal Function
 // Reverses the bits of `index` assuming `total_bits` bits.
@@ -50,5 +51,32 @@ impl Complex {
 }
 
 // Twiddle Factor Generation
-// Butteryfly Operationsa
+// Generates N complex roots of unity (twiddle factors).
+// Used to combine Discrete Fourier Transforms into a larger one.
+// W_N^k = e^(-2πik/N) for k = 0, 1, ..., N-1
+pub fn generate_twiddle_factor(n: usize) -> Vec<Complex> {
+    (0..n).map(|k| { 
+        let angle = (-2.0 * PI * k as f32) / n as f32;
+        Complex {
+            real: angle.cos(),
+            imag: angle.sin(),
+        }
+    }).collect()
+}
 
+// Butterfly Operationsa
+// Performs the basic FFT butterfly operation.
+// Combines two complex numbers using a twiddle factor.
+// Returns the "upper" and "lower" results after scaling and alignment.
+pub fn butterfly_operation(a: Complex, b: Complex, twiddle: Complex) ->  (Complex, Complex) {
+    let twiddle_b = Comlex::multiply(twiddle, b);
+    let upper = Comeplx::add(a, twiddle_b);
+    let lower = Complex::subtract(a, twiddle_b);
+    (upper, lower)
+}
+
+// Unit Tests -> Huh So in Rust these are done in files?
+#[cfg(test)]
+mod tests {
+
+}
