@@ -76,7 +76,28 @@ pub fn butterfly_operation(a: Complex, b: Complex, twiddle: Complex) ->  (Comple
 }
 
 // Unit Tests -> Huh So in Rust these are done in files?
-#[cfg(test)]
+#[cfg(test)] 
 mod tests {
+    use super::*;
 
+    #[test]
+    fn test_bit_reverse() {
+        let test_cases = vec![
+            // (index, bit, expected)
+           (1, 3, 4),  // 001 -> 100
+           (3, 3, 6),  // 011 -> 110
+           (5, 4, 10), // 0101 -> 1010
+           (0, 4, 0),  // 0000 -> 0000        
+        ];
+
+        for (index, bits, expected) in test_cases {
+            assert_eq!(bit_reverse(index, bits), expected);
+        }
+    }
+
+    #[test]
+    fn test_complex_addition() {
+        let a_arr = vec![Complex {real: 1.0, imag: 2.0}];
+        let b_arr = vec![Complex {real: 3.0, imag: 4.0}];
+    }
 }
