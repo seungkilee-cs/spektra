@@ -97,7 +97,17 @@ mod tests {
 
     #[test]
     fn test_complex_addition() {
-        let a_arr = vec![Complex {real: 1.0, imag: 2.0}];
-        let b_arr = vec![Complex {real: 3.0, imag: 4.0}];
+        let a_arr = vec![Complex {real: 1.0, imag: 2.0}, Complex {real: 5.0, imag: 6.0}];
+        let b_arr = vec![Complex {real: 3.0, imag: 4.0}, Complex {real: 7.0, imag: 8.0}];
+        let expected = vec![
+            Complex { real: 4.0, imag: 6.0 }, // (1+3, 2+4)
+            Complex { real: 12.0, imag: 14.0 }, // (5+7, 6+8)
+        ];
+
+        // iter() returns reference so I need *a, *b for dereferrence
+        for (i, (a,b)) in a_arr.iter().zip(b_arr.iter()).enumerate() {
+            let res = Complex::add(*a, *b);
+            assert_eq!(res, expected[i], "Test Fail at index {}", i);
+        }
     }
 }
