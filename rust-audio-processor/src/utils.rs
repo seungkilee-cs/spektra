@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complex_subtration() {
+    fn test_complex_subtraction() {
         let a_arr = vec![Complex {real: 1.0, imag: 2.0}];
         let b_arr = vec![Complex {real: 3.0, imag: 4.0}];
         let expected = vec![Complex { real: -2.0, imag: -2.0 }];
@@ -122,4 +122,17 @@ mod tests {
             assert_eq!(res, expected[i], "Test Fail at index {}", i);
         }
     }
+    
+    #[test]
+    fn test_complex_multiplication() {
+        let a_arr = vec![Complex {real: 1.0, imag: 2.0}];
+        let b_arr = vec![Complex {real: 3.0, imag: 4.0}];
+        let exprected = vec![Complex { real: 0.0, imag:0.0 }];
+
+        for (i, (a,b)) in a_arr.iter().zip(b_arr.iter()).enumerate() {
+            let res = Complex::multiply(*a, *b);
+            assert_eq!(res, expected[i], "Test Fail at index {}", i);
+        }
+    }
+
 }
