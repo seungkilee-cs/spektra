@@ -25,6 +25,10 @@ function applyHannWindow(segment) {
   return result;
 }
 
+function validateFFTSize(size) {
+  return size > 0 && (size & (size - 1)) === 0; // Power of 2 check
+}
+
 export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
   console.time("Total computeSpectogram");
 
@@ -107,7 +111,7 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
     segment = applyHannWindow(segment);
 
     console.time("FFT");
-    const spectrum = fft(segment.map((value) => ({ real: value, imag: 0 })));
+    const spectrum = fft(segment);
     console.timeEnd("FFT");
 
     console.time("MagnitudeCalc");

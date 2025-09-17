@@ -60,7 +60,10 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         frame.forEach((magnitude, freqIndex) => {
           const y = canvas.height - freqIndex * binHeight;
           ctx.fillStyle = magnitudeToColor(magnitude);
-          ctx.fillRect(timeIndex * binWidth, y, binWidth + 1, binHeight + 1);
+          // Use ImageData for bulk pixel operations
+          const imageData = ctx.createImageData(canvas.width, canvas.height);
+          // Manipulate imageData.data directly, then:
+          ctx.putImageData(imageData, 0, 0);
         });
       });
       console.timeEnd("Canvas drawing");
