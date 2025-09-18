@@ -15,15 +15,6 @@ function App() {
       debugLog("=== FILE SELECTION START ===");
       setFile(selectedFile);
       debugLog("Selected file:", selectedFile);
-      console.log("Testing computeSpectogram function...");
-      import("./__tests__/testSpectrum").then((module) => {
-        module
-          .testSpectrumFunction(selectedFile)
-          .then((result) =>
-            console.log("Direct test passed:", result.length, "frames"),
-          )
-          .catch((err) => console.error("Direct test failed:", err));
-      });
 
       debugLog("File details:", {
         name: selectedFile.name,
@@ -59,13 +50,14 @@ function App() {
     }
   };
 
+  console.log("App.jsx - Current file state:", file);
   return (
     <div className="App">
       <h1>Spektra</h1>
       <h4>Static Spectrum Analyzer</h4>
       <FileUpload onFileSelect={handleFileSelect} />
-      <AudioMetadataDisplay metadata={metadata} />
-      {/* <SpectrumCanvas fileUploaded={file} /> */}
+      {metadata && <AudioMetadataDisplay metadata={metadata} />}
+      <SpectrumCanvas fileUploaded={file} />
     </div>
   );
 }
