@@ -12,8 +12,25 @@ function App() {
 
   const handleFileSelect = async (selectedFile) => {
     try {
+      debugLog("=== FILE SELECTION START ===");
       setFile(selectedFile);
       debugLog("Selected file:", selectedFile);
+      console.log("Testing computeSpectogram function...");
+      import("./__tests__/testSpectrum").then((module) => {
+        module
+          .testSpectrumFunction(selectedFile)
+          .then((result) =>
+            console.log("Direct test passed:", result.length, "frames"),
+          )
+          .catch((err) => console.error("Direct test failed:", err));
+      });
+
+      debugLog("File details:", {
+        name: selectedFile.name,
+        type: selectedFile.type,
+        size: selectedFile.size,
+        lastModified: new Date(selectedFile.lastModified),
+      });
 
       if (
         !["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac"].includes(
@@ -25,6 +42,8 @@ function App() {
         return;
       }
 
+      debugLog("File state updated, should trigger SpectrumCanvas re-render");
+
       const metadata = await extractAudioMetadata(selectedFile);
       debugLog("Extracted metadata:", metadata);
 
@@ -33,6 +52,8 @@ function App() {
       }
 
       setMetadata(metadata);
+
+      debugLog("=== FILE SELECTION END ===");
     } catch (error) {
       debugError("Error during file selection or metadata extraction:", error);
     }

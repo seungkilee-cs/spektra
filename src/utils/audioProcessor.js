@@ -52,8 +52,17 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
 
   // AudioContext creation
   console.time("AudioContext creation");
-  const audioContext = new AudioContext();
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    throw new Error("Web Audio API not supported in this browser");
+  }
+  const audioContext = new AudioContextClass();
   console.timeEnd("AudioContext creation");
+  console.log("AudioContext created with:", {
+    constructor: AudioContextClass.name,
+    sampleRate: audioContext.sampleRate,
+    state: audioContext.state,
+  });
 
   console.log("audioContext created. Sample rate:", audioContext.sampleRate);
   console.time("DecodeAudioData");
@@ -123,7 +132,39 @@ export async function computeSpectogram(file, fftSize = 512, overlap = 0.5) {
   }
 
   console.timeEnd("Spectogram Generation");
-  console.timeEnd("Total computeSpectogram");
 
+  // ADD VALIDATION
+  console.log("Spectogram data validation:");
+  console.log(`- Generated ${spectogramData.length} time frames`);
+  console.log(
+    `- Each frame has ${spectogramData[0]?.length || 0} frequency bins`,
+  );
+
+  if (spectogramData.length === 0) {
+    throw new Error("No spectogram data generated - audio may be too short");
+  }
+
+  if (spectogramData[0].length === 0) {
+    throw new Error("Empty frequency bins - FFT may have failed");
+  }
+
+  // Check for valid magnitude values
+  const flatData = spectogramData.flat();
+  const validValues = flatData.filter((val) => !isNaN(val) && isFinite(val));
+  console.log(
+    `- Valid magnitude values: ${validValues.length}/${flatData.length}`,
+  );
+
+  if (validValues.length === 0) {
+    throw new Error("All magnitude values are invalid (NaN or Infinite)");
+  }
+
+  const maxMag = Math.max(...validValues);
+  const minMag = Math.min(...validValues);
+  console.log(
+    `- Magnitude range: ${minMag.toFixed(6)} to ${maxMag.toFixed(6)}`,
+  );
+
+  console.timeEnd("Total computeSpectogram");
   return spectogramData;
 }
