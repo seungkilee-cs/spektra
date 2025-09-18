@@ -10,14 +10,23 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
-      // Clear canvas
+      // Reserve space for labels
+      const leftMargin = 50;
+      const rightMargin = 50;
+      const bottomMargin = 30;
+      const topMargin = 10;
+
+      const plotWidth = canvas.width - leftMargin - rightMargin;
+      const plotHeight = canvas.height - topMargin - bottomMargin;
+
+      // Clear canvas with black background
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#000";
+      ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       console.log("=== STARTING SPECTRUM RENDERING ===");
 
-      // Compute spectrogram data
+      // Compute spectogram data
       const spectogramData = await computeSpectogram(file);
       console.log(
         "Spectogram dimensions:",
@@ -54,27 +63,26 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         );
       }
 
-      // ✅ FIXED: Convert to dB scale (like Spek)
+      // Convert to dB scale (like Spek)
       const dbData = displayData.map((frame) =>
         frame.map((magnitude) => {
-          // Convert linear magnitude to dB, with noise floor
           const db = magnitude > 0 ? 20 * Math.log10(magnitude) : -120;
           return Math.max(-120, db); // Clip at -120 dB noise floor
         }),
       );
 
-      // ✅ FIXED: Normalize to dB range (like Spek: -120 dB to 0 dB)
+      // Normalize to 0-1 range for color mapping
       const minDb = -120;
       const maxDb = 0;
-      const normalizedData = dbData.map(
-        (frame) => frame.map((db) => (db - minDb) / (maxDb - minDb)), // Normalize to 0-1 range
+      const normalizedData = dbData.map((frame) =>
+        frame.map((db) => (db - minDb) / (maxDb - minDb)),
       );
 
-      // Compute drawing params
+      // Compute drawing params (only for plot area)
       const timeBins = normalizedData.length;
       const freqBins = normalizedData[0].length;
-      const binWidth = canvas.width / timeBins;
-      const binHeight = canvas.height / freqBins;
+      const binWidth = plotWidth / timeBins;
+      const binHeight = plotHeight / freqBins;
 
       console.log("Rendering params:", {
         timeBins,
@@ -83,44 +91,49 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         binHeight,
       });
 
-      // Create ImageData buffer
-      const imageData = ctx.createImageData(canvas.width, canvas.height);
+      // Create ImageData buffer for plot area only
+      const imageData = ctx.createImageData(plotWidth, plotHeight);
       const data = imageData.data;
 
-      // ✅ FIXED: Spek-style color mapping (black → blue → purple → red → yellow → white)
-      const magnitudeToColor = (normalizedMagnitude) => {
-        // Clamp to 0-1 range
+      // ✅ FIXED: Spek-accurate color scheme (dark → bright)
+      const spekColorMap = (normalizedMagnitude) => {
         const t = Math.max(0, Math.min(1, normalizedMagnitude));
 
         let r, g, b;
 
-        if (t < 0.2) {
-          // Black to dark blue (0.0 - 0.2)
-          const local = t / 0.2;
-          r = 0;
+        if (t < 0.1) {
+          // Very dark blue to dark blue (silence to very quiet)
+          const local = t / 0.1;
+          r = Math.floor(local * 20);
           g = 0;
-          b = Math.floor(local * 128); // 0 to 128
-        } else if (t < 0.4) {
-          // Dark blue to purple (0.2 - 0.4)
-          const local = (t - 0.2) / 0.2;
-          r = Math.floor(local * 128); // 0 to 128
-          g = 0;
-          b = 128 + Math.floor(local * 127); // 128 to 255
-        } else if (t < 0.6) {
-          // Purple to red (0.4 - 0.6)
-          const local = (t - 0.4) / 0.2;
-          r = 128 + Math.floor(local * 127); // 128 to 255
-          g = Math.floor(local * 128); // 0 to 128
-          b = 255 - Math.floor(local * 128); // 255 to 127
-        } else if (t < 0.8) {
-          // Red to orange/yellow (0.6 - 0.8)
-          const local = (t - 0.6) / 0.2;
+          b = 20 + Math.floor(local * 60); // 20 to 80
+        } else if (t < 0.3) {
+          // Dark blue to bright blue
+          const local = (t - 0.1) / 0.2;
+          r = 20 + Math.floor(local * 30); // 20 to 50
+          g = Math.floor(local * 50); // 0 to 50
+          b = 80 + Math.floor(local * 175); // 80 to 255
+        } else if (t < 0.5) {
+          // Blue to purple/magenta
+          const local = (t - 0.3) / 0.2;
+          r = 50 + Math.floor(local * 150); // 50 to 200
+          g = 50 - Math.floor(local * 50); // 50 to 0
+          b = 255;
+        } else if (t < 0.7) {
+          // Purple to red
+          const local = (t - 0.5) / 0.2;
+          r = 200 + Math.floor(local * 55); // 200 to 255
+          g = Math.floor(local * 100); // 0 to 100
+          b = 255 - Math.floor(local * 100); // 255 to 155
+        } else if (t < 0.9) {
+          // Red to orange/yellow
+          const local = (t - 0.7) / 0.2;
           r = 255;
-          g = 128 + Math.floor(local * 127); // 128 to 255
-          b = Math.max(0, 127 - Math.floor(local * 127)); // 127 to 0
+          g = 100 + Math.floor(local * 155); // 100 to 255
+          b = Math.max(0, 155 - Math.floor(local * 155)); // 155 to 0
         } else {
-          // Orange to white (0.8 - 1.0)
-          const local = (t - 0.8) / 0.2;
+          // Orange/yellow to white (loudest)
+          const local = (t - 0.9) / 0.1;
           r = 255;
           g = 255;
           b = Math.floor(local * 255); // 0 to 255
@@ -129,27 +142,25 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         return { r, g, b };
       };
 
-      // Fill pixels efficiently
+      // Fill pixels for spectogram data
       normalizedData.forEach((frame, timeIndex) => {
         frame.forEach((magnitude, freqIndex) => {
-          const color = magnitudeToColor(magnitude);
+          const color = spekColorMap(magnitude);
           const xStart = Math.floor(timeIndex * binWidth);
-          const yStart = Math.floor(
-            canvas.height - (freqIndex + 1) * binHeight,
-          );
+          const yStart = Math.floor(plotHeight - (freqIndex + 1) * binHeight);
 
           // Fill bin rectangle
           for (
             let y = Math.max(0, yStart);
-            y < Math.min(canvas.height, yStart + Math.ceil(binHeight));
+            y < Math.min(plotHeight, yStart + Math.ceil(binHeight));
             y++
           ) {
             for (
               let x = Math.max(0, xStart);
-              x < Math.min(canvas.width, xStart + Math.ceil(binWidth));
+              x < Math.min(plotWidth, xStart + Math.ceil(binWidth));
               x++
             ) {
-              const index = (y * canvas.width + x) * 4;
+              const index = (y * plotWidth + x) * 4;
               data[index] = color.r;
               data[index + 1] = color.g;
               data[index + 2] = color.b;
@@ -159,9 +170,104 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         });
       });
 
-      // Draw the complete ImageData
-      ctx.putImageData(imageData, 0, 0);
-      console.log("✅ Spectrum rendering completed");
+      // Draw the spectogram in the plot area
+      ctx.putImageData(imageData, leftMargin, topMargin);
+
+      // ✅ ADD PROFESSIONAL LABELS LIKE SPEK
+
+      // **FREQUENCY LABELS (LEFT SIDE - PRIMARY FOCUS)**
+      ctx.fillStyle = "#cccccc";
+      ctx.font = "11px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+
+      // Calculate sample rate from audio data (assume 44.1kHz for now, ideally get from audioBuffer)
+      const sampleRate = 44100; // This should ideally come from your audio buffer
+      const nyquistFreq = sampleRate / 2; // 22050 Hz
+
+      // Frequency labels - using logarithmic spacing like Spek
+      const freqLabels = [
+        { freq: 0, label: "0" },
+        { freq: 100, label: "100" },
+        { freq: 200, label: "200" },
+        { freq: 500, label: "500" },
+        { freq: 1000, label: "1k" },
+        { freq: 2000, label: "2k" },
+        { freq: 5000, label: "5k" },
+        { freq: 10000, label: "10k" },
+        { freq: 15000, label: "15k" },
+        { freq: 20000, label: "20k" },
+        { freq: 22000, label: "22k" },
+      ];
+
+      freqLabels.forEach(({ freq, label }) => {
+        if (freq <= nyquistFreq) {
+          // Linear frequency mapping (you could make this logarithmic like Spek)
+          const y = topMargin + plotHeight - (freq / nyquistFreq) * plotHeight;
+          ctx.fillText(label, leftMargin - 5, y);
+
+          // Draw grid line
+          ctx.strokeStyle = "#333333";
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(leftMargin, y);
+          ctx.lineTo(leftMargin + plotWidth, y);
+          ctx.stroke();
+        }
+      });
+
+      // **dB LABELS (RIGHT SIDE)**
+      ctx.textAlign = "left";
+      const dbLabels = [0, -20, -40, -60, -80, -100, -120];
+
+      dbLabels.forEach((db) => {
+        const y =
+          topMargin +
+          plotHeight -
+          ((db - minDb) / (maxDb - minDb)) * plotHeight;
+        ctx.fillText(`${db}`, leftMargin + plotWidth + 5, y);
+      });
+
+      // **TIME LABELS (BOTTOM)**
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      // Estimate duration (4:16 = 256 seconds, but should come from actual audio)
+      const estimatedDuration = 256; // This should come from your audio metadata
+      const timeLabels = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4];
+
+      timeLabels.forEach((minutes) => {
+        if (minutes * 60 <= estimatedDuration) {
+          const x =
+            leftMargin + ((minutes * 60) / estimatedDuration) * plotWidth;
+          const label =
+            minutes === Math.floor(minutes)
+              ? `${Math.floor(minutes)}:00`
+              : `${Math.floor(minutes)}:30`;
+          ctx.fillText(label, x, topMargin + plotHeight + 5);
+        }
+      });
+
+      // **AXIS LABELS**
+      ctx.fillStyle = "#aaaaaa";
+      ctx.font = "12px Arial";
+
+      // "Hz" label (left)
+      ctx.textAlign = "center";
+      ctx.save();
+      ctx.translate(15, topMargin + plotHeight / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("Hz", 0, 0);
+      ctx.restore();
+
+      // "dB" label (right)
+      ctx.save();
+      ctx.translate(canvas.width - 15, topMargin + plotHeight / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText("dB", 0, 0);
+      ctx.restore();
+
+      console.log("✅ Spectrum rendering completed with labels");
     };
 
     if (fileUploaded) {
@@ -189,9 +295,11 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       const ctx = canvas?.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = "#cccccc";
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#444444";
         ctx.lineWidth = 2;
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeRect(50, 10, canvas.width - 100, canvas.height - 40);
         ctx.fillStyle = "#cccccc";
         ctx.font = "1rem Arial";
         ctx.textAlign = "center";
@@ -207,9 +315,13 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   return (
     <canvas
       ref={canvasRef}
-      width={800}
-      height={400}
-      style={{ border: "1px solid #ccc" }}
+      width={900}
+      height={450}
+      style={{
+        border: "1px solid #333",
+        backgroundColor: "#000",
+        borderRadius: "4px",
+      }}
     />
   );
 };
