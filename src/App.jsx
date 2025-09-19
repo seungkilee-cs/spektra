@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import FileUpload from "./components/FileUpload";
 import AudioMetadataDisplay from "./components/AudioMetadataDisplay";
 import SpectrumCanvas from "./components/SpectrumCanvas";
+import AudioMetadataHeader from "./components/AudioMetadataHeader";
+
 import { extractAudioMetadata } from "./utils/formatMetadata";
 import { debugLog, debugError } from "./utils/debug";
 import "./App.css";
@@ -56,7 +58,7 @@ function App() {
       <h1>Spektra</h1>
       <h4>Static Spectrum Analyzer</h4>
       <FileUpload onFileSelect={handleFileSelect} />
-      {metadata && <AudioMetadataDisplay metadata={metadata} />}
+      <AudioMetadataHeader metadata={metadata} file={file} />
       <SpectrumCanvas fileUploaded={file} />
     </div>
   );
