@@ -1,32 +1,23 @@
-# === BUILD ARTIFACTS (NEVER COMMIT) ===
-/target/                    # All Rust build outputs
-Cargo.lock                 # Lock file (only for libraries)
+# Rust build outputs
+/target/
+/pkg/
+Cargo.lock
 
-# === WASM BUILD OUTPUTS (REGENERATED) ===
-/pkg/                      # All wasm-pack outputs
+# Dependency files
+*.d
+
+# WASM build artifacts
 *.wasm
-*.js  
+*.js
 *.ts
-*.d.ts
 wasm-pack.log
 
-# === DEVELOPMENT FILES ===
+# Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# === OS FILES ===
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# === TEMPORARY FILES ===
-*.tmp
-*.temp
-.cache/

@@ -56,3 +56,8 @@ dist-ssr
 # manual exclude
 _legacy/*
 
+
+# Rust build artifacts
+rust-audio-processor/target/
+rust-audio-processor/pkg/
+rust-audio-processor/Cargo.lock
