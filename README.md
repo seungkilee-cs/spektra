@@ -1,4 +1,4 @@
-# Spektra
+# [Spektra](https://www.seungkilee.com/Spektra)
 
 ![Spektra Landing](./docs/screenshots/Spektra.0.1.1.Landing.png)
 
