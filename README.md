@@ -18,13 +18,13 @@ This led to the idea behind Spektra: a lightweight, client-side, static web-base
 
 ## Features
 
-- **Audio File Upload**: Supports MP3, M4A, FLAC, and more via drag-and-drop or file selection.
-- **Spectrogram Visualization**: Displays frequency spectrum with logarithmic dB scaling and customizable color mapping.
-- **Metadata Display**: Shows file details like bitrate, sample rate, codec, and duration in a compact, expandable header.
-- **Professional Labels**: Frequency (Hz) on left, dB on right, time on bottom – matching industry standards.
-- **Performance Optimizations**: Downsampling for large files to ensure smooth rendering.
-- **Cross-Browser Compatibility**: Uses Web Audio API with fallbacks for broad support.
-- **Static Deployment**: Runs entirely client-side with no backend required.
+- Audio File Upload: Supports MP3, M4A, FLAC, and more via drag-and-drop or file selection.
+- Spectrogram Visualization: Displays frequency spectrum with logarithmic dB scaling and Spek-like color mapping.
+- Metadata Display: Shows file details like bitrate, sample rate, codec, and duration in a compact, expandable header.
+- Professional Labels: Frequency (Hz) on left, dB on right, time on bottom – matching industry standards.
+- Performance Optimizations: Downsampling for large files to ensure smooth rendering.
+- Cross-Browser Compatibility: Uses Web Audio API with fallbacks for broad support.
+- Static Deployment: Runs entirely client-side with no backend required.
 
 ## Demo
 
@@ -86,23 +86,29 @@ For developers:
 - **Visualization**: HTML Canvas for efficient pixel rendering.
 - **Build Tools**: Vite for fast development and bundling.
 
-## Current Improvements
+## Current Iterations
 
 Spektra is a prototype with room for enhancement.
 
-- **Rust + WASM for FFT**: Javascript FFT is feasible but slow. Even the native JS FFT library is not performant for larger files, and un-optimized high level implementation will definitely crash.
-  So I'm working to replace JavaScript FFT with a high-performance Rust implementation compiled to WebAssembly. This could improve processing speed by 3-10x for large files, enabling near-native performance in the browser.
+### High Priority
 
-- **Revamp the Looks**: Modernize the UI with a dark theme, responsive design, zoom/pan functionality for spectrograms, and customizable color schemes (e.g., presets matching Spek, Audacity).
+- [ ] Rust + WASM for FFT: Javascript FFT is feasible but slow. Even the native JS FFT library is not performant for larger files, and un-optimized high level implementation will definitely crash. So I'm working to replace JavaScript FFT with a high-performance Rust implementation compiled to WebAssembly. This could improve processing speed by 3-10x for large files, enabling near-native performance in the browser.
 
-- **Real-Time Analysis**: Add microphone input for live audio visualization, with options for real-time spectrograms and peak detection.
-- **Advanced Features**:
-  - Support for more file formats (e.g., WAV, OGG).
-  - Export options (PNG/JPG of spectrogram, CSV of frequency data).
-  - Comparative analysis (overlay multiple audio files).
-  - Mobile optimization and PWA support.
-- **Performance Enhancements**: Multi-threading via Web Workers, GPU acceleration with WebGL for rendering.
-- **Accessibility**: Add ARIA labels, keyboard navigation, and high-contrast modes.
+- [x] Revamp the Ui: Modernize the UI with a dark theme, responsive design, zoom/pan functionality for spectrograms, and customizable color schemes. Current vibe I am shooting for is "Spek for Web."
+
+- [ ] Add More File Format Support: Want to add support for WAV, OGG, ALAC.
+
+### Low Priority
+
+- [ ] Mobile optimization and PWA support: To leverage the cross platform strength I want to make the responsive design work with mobile
+
+- [ ] Real-Time Analysis: Add microphone input for live audio visualization, with options for real-time spectrograms and peak detection.
+
+- [ ] Export options (PNG/JPG of spectrogram, CSV of frequency data).
+
+- [ ] Comparative analysis (overlay multiple audio files).
+
+- [ ] Performance Enhancements: If Rust FFT doesn't work as performant as I want it to, I'm looking to delving deeper into multi-threading via Web Workers, GPU acceleration with WebGL for rendering.
 
 ## License
 
