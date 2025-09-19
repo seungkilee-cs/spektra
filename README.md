@@ -28,7 +28,7 @@ This led to the idea behind Spektra: a lightweight, client-side, static web-base
 
 ## Demo
 
-Check out [Spektra](seungkilee-cs.github.io/Spektra) or install and run it yourself.
+Check out [Spektra](https://www.seungkilee.com/Spektra) or install and run it yourself.
 
 ## Installation
 
