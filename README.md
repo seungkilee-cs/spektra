@@ -4,6 +4,16 @@
 
 Spektra is a static web-based spectrum analyzer that visualizes audio files using Fast Fourier Transform (FFT) to display frequency content over time. Inspired by tools like Spek, it allows users to upload audio files and view detailed spectrograms with professional-grade features like dB scaling, color mapping, and metadata display. Built as a single-page application (SPA) for easy deployment on platforms like GitHub Pages.
 
+## Motivation
+
+As a passionate audio enthusiast, I've encountered numerous instances where I purchased 'FLAC' files from questionable sources, tried them out, and sensed they sounded no different from YouTube streams—only to discover they were low-quality rips with frequency content sharply truncated, commonly around 18 kHz rather than the full spectrum up to 20 kHz or beyond. This experience led me to develop a habit of rigorously verifying the actual frequency range of audio files.
+
+Now, with the caveat that I believe a well-engineered 256kbps audio file is effectively indistinguishable from a 16-bit/48kHz FLAC, this still leaves me with a lingering distrust of online audio vendors.
+
+Even when purchasing from trusted platforms like Qobuz, I prefer to validate that the files truly contain the claimed high-fidelity audio data. Tools like [Spek](https://spek.cc) have been invaluable in this regard, but their unavailability on certain platforms like Linux at some point, made me long for a lightweight, cross-platform analyzer accessible anytime.
+
+This led to the idea behind Spektra: a lightweight, client-side, static web-based audio spectrum analyzer leveraging FFT, designed for universal accessibility and ease of use. My goal was to create a trustworthy tool that puts the power of spectral verification at users’ fingertips, without the hassle of installation or OS limitations.
+
 ## Features
 
 - **Audio File Upload**: Supports MP3, M4A, FLAC, and more via drag-and-drop or file selection.
