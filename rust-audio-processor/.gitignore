@@ -1,0 +1,49 @@
+# Rust/Cargo specific
+/target/
+**/*.rs.bk
+Cargo.lock  # Only ignore if this is a library; keep if it's a binary
+
+# WebAssembly build outputs
+/pkg/
+*.wasm
+*.js
+*.ts
+*.d.ts
+wasm-pack.log
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Rust profiling
+perf.data*
+flamegraph.svg
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.lib
+*.a
+
+# Debug outputs
+*.pdb
+

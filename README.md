@@ -1,8 +1,8 @@
 # Spektra
 
-![Spektra Landing](./screenshots/Spektra.0.1.1.Landing.png)
+![Spektra Landing](./docts/screenshots/Spektra.0.1.1.Landing.png)
 
-![Specktra 02](./screenshots/Spektra.0.1.3.Spectogram.png)
+![Specktra 02](./docs/screenshots/Spektra.0.1.3.Spectogram.png)
 
 Spektra is a static web-based spectrum analyzer that visualizes audio files using Fast Fourier Transform (FFT) to display frequency content over time. Inspired by tools like Spek, it allows users to upload audio files and view detailed spectrograms with professional-grade features like dB scaling, color mapping, and metadata display. Built as a single-page application (SPA) for easy deployment on platforms like GitHub Pages.
 
@@ -95,11 +95,13 @@ Spektra is a prototype with room for enhancement.
 
 - [x] 🦀 Rust + WASM for FFT: Javascript FFT is feasible but slow. Even the native JS FFT library is not performant for larger files, and un-optimized high level implementation will definitely crash. So I'm working to replace JavaScript FFT with a high-performance Rust implementation compiled to WebAssembly. This could improve processing speed by 3-10x for large files, enabling near-native performance in the browser.
 
-Checkout the [performance differences](fft-js_rust+wasm_comparison).
+Checkout the [performance differences](./docs/fft-js_rust+wasm_comparison.md).
 
 - [x] Revamp the Ui: Modernize the UI with a dark theme, responsive design, zoom/pan functionality for spectrograms, and customizable color schemes. Current vibe I am shooting for is "Spek for Web."
 
 - [ ] Add More File Format Support: Want to add support for WAV, OGG, ALAC.
+
+- [ ] Responsive Design: Updating CSS for visuals
 
 ### Low Priority
 
