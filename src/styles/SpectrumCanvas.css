@@ -3,6 +3,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -22,6 +23,9 @@
     0 4px 12px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: all 0.3s ease;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
 .spectrum-canvas:hover {
@@ -31,11 +35,35 @@
   transform: translateY(-2px);
 }
 
+/* Fixed processing indicator positioning */
+.processing-indicator {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: #fbbf24;
+  font-family: "JetBrains Mono", monospace;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  z-index: 10;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .spectrum-canvas-container {
     padding: 15px;
     margin: 10px;
+  }
+
+  .processing-indicator {
+    font-size: 12px;
+    padding: 6px 12px;
+    top: -30px;
   }
 }
 
@@ -48,6 +76,12 @@
 
   .spectrum-canvas {
     border-radius: 8px;
+  }
+
+  .processing-indicator {
+    font-size: 11px;
+    padding: 5px 10px;
+    top: -25px;
   }
 }
 

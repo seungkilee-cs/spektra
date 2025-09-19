@@ -1,8 +1,8 @@
 # Spektra
 
-![Spektra Landing](./screenshots/Spektra-Landing.png)
+![Spektra Landing](./screenshots/Spektra.0.1.1.Landing.png)
 
-![Specktra 02](./screenshots/Spektra-02.png)
+![Specktra 02](./screenshots/Spektra.0.1.3.Spectogram.png)
 
 Spektra is a static web-based spectrum analyzer that visualizes audio files using Fast Fourier Transform (FFT) to display frequency content over time. Inspired by tools like Spek, it allows users to upload audio files and view detailed spectrograms with professional-grade features like dB scaling, color mapping, and metadata display. Built as a single-page application (SPA) for easy deployment on platforms like GitHub Pages.
 
@@ -81,7 +81,8 @@ For developers:
 ## Technologies
 
 - **Frontend**: React.js for UI components and state management.
-- **Audio Processing**: Web Audio API for decoding, fft-js for FFT computations.
+- **Audio Processing**: Web Audio API for decoding audio files.
+- Fast Fourier Transform: Custom implementation in Javascript -> fft-js library -> 🦀 Rust + WASM implementation.
 - **Metadata**: music-metadata-browser for extracting audio tags.
 - **Visualization**: HTML Canvas for efficient pixel rendering.
 - **Build Tools**: Vite for fast development and bundling.
@@ -92,7 +93,9 @@ Spektra is a prototype with room for enhancement.
 
 ### High Priority
 
-- [ ] Rust + WASM for FFT: Javascript FFT is feasible but slow. Even the native JS FFT library is not performant for larger files, and un-optimized high level implementation will definitely crash. So I'm working to replace JavaScript FFT with a high-performance Rust implementation compiled to WebAssembly. This could improve processing speed by 3-10x for large files, enabling near-native performance in the browser.
+- [x] 🦀 Rust + WASM for FFT: Javascript FFT is feasible but slow. Even the native JS FFT library is not performant for larger files, and un-optimized high level implementation will definitely crash. So I'm working to replace JavaScript FFT with a high-performance Rust implementation compiled to WebAssembly. This could improve processing speed by 3-10x for large files, enabling near-native performance in the browser.
+
+Checkout the [performance differences](fft-js_rust+wasm_comparison).
 
 - [x] Revamp the Ui: Modernize the UI with a dark theme, responsive design, zoom/pan functionality for spectrograms, and customizable color schemes. Current vibe I am shooting for is "Spek for Web."
 

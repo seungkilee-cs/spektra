@@ -1,4 +1,4 @@
-// audioProcessor.js - Using fft-js library (COMPLETE REPLACEMENT)
+// audioProcessor.js - Using fft-js library
 import { fft } from "fft-js";
 
 export async function computeSpectogram(file, fftSize = 1024, overlap = 0.5) {
