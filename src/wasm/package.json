@@ -1,0 +1,15 @@
+{
+  "name": "rust-audio-processor",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "rust_audio_processor_bg.wasm",
+    "rust_audio_processor.js",
+    "rust_audio_processor.d.ts"
+  ],
+  "main": "rust_audio_processor.js",
+  "types": "rust_audio_processor.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

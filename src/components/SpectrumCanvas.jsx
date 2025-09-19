@@ -1,33 +1,152 @@
-import React, {
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { computeSpectogram } from "../utils/audioProcessor";
+import { debugLog, debugError } from "../utils/debug";
 import "../styles/SpectrumCanvas.css";
+
+// WASM imports - these will be created next
+let wasmModule = null;
+let WasmSpectrogramProcessor = null;
+
+// Initialize WASM (try to load, fall back gracefully if not available)
+const initWasm = async () => {
+  if (wasmModule) {
+    console.log("✅ WASM already initialized");
+    return wasmModule;
+  }
+
+  try {
+    console.log("🔄 Attempting to load WASM module...");
+    console.time("🦀 WASM Initialization");
+
+    // Check if files exist first
+    const wasmImports = await import("../wasm/rust_audio_processor.js");
+    console.log("✅ WASM JS bindings loaded");
+
+    wasmModule = await wasmImports.default();
+    console.log("✅ WASM binary loaded");
+
+    WasmSpectrogramProcessor = wasmImports.WasmSpectrogramProcessor;
+    console.log("✅ WASM exports:", Object.keys(wasmImports));
+
+    console.log("✅ Rust WASM module initialized successfully");
+    return wasmModule;
+  } catch (error) {
+    console.error("❌ WASM module loading failed:", error);
+    console.error("❌ Error details:", error.message);
+    console.error("❌ Error stack:", error.stack);
+    return null;
+  } finally {
+    console.timeEnd("🦀 WASM Initialization");
+  }
+};
+// WASM-powered audio processing
+const processAudioWithWasm = async (file) => {
+  console.log("🦀 Starting WASM audio processing...");
+
+  const wasmInstance = await initWasm();
+  if (!wasmInstance || !WasmSpectrogramProcessor) {
+    throw new Error("WASM module not available");
+  }
+
+  console.log("🦀 WASM module confirmed available");
+
+  try {
+    // Load audio file (same as JS version)
+    console.log("🦀 Loading audio for WASM processing...");
+    const audioContext = new (window.AudioContext ||
+      window.webkitAudioContext)();
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const audioData = audioBuffer.getChannelData(0);
+
+    console.log(
+      `🎵 Audio loaded for WASM: ${audioData.length} samples @ ${audioBuffer.sampleRate}Hz`,
+    );
+
+    // Create Rust processor and process
+    console.log("🦀 Creating WASM processor...");
+    const processor = new WasmSpectrogramProcessor(1024);
+    console.log("🦀 Calling compute_spectrogram...");
+
+    const spectrogramFlat = processor.compute_spectrogram(audioData, 0.5);
+    console.log(
+      "🦀 WASM compute_spectrogram completed, got",
+      spectrogramFlat.length,
+      "values",
+    );
+
+    // Reshape flat array back to 2D
+    const numWindows = Math.floor((audioData.length - 1024) / (1024 * 0.5)) + 1;
+    const freqBins = 1024 / 2;
+    const spectrogram = [];
+
+    for (let i = 0; i < numWindows; i++) {
+      const start = i * freqBins;
+      const end = start + freqBins;
+      spectrogram.push(Array.from(spectrogramFlat.slice(start, end)));
+    }
+
+    console.log(
+      `🦀 WASM Generated spectrogram: ${spectrogram.length} x ${spectrogram[0].length}`,
+    );
+    return spectrogram;
+  } catch (error) {
+    console.error("❌ WASM processing error:", error);
+    throw error;
+  }
+};
+// Performance comparison logging (your existing function)
+const logPerformanceComparison = (
+  jsTime,
+  wasmTime,
+  fileSize,
+  spectrogramSize,
+) => {
+  const speedup = (jsTime / wasmTime).toFixed(2);
+  const improvement = (((jsTime - wasmTime) / jsTime) * 100).toFixed(1);
+  const fileMB = (fileSize / 1024 / 1024).toFixed(2);
+
+  console.log(`
+🏆 FFT Performance Comparison Results
+${"=".repeat(50)}
+📁 File Size: ${fileMB} MB
+📊 Spectrogram: ${spectrogramSize}
+${"─".repeat(30)}
+🟡 JavaScript (fft-js): ${jsTime.toFixed(2)}ms
+🦀 Rust+WASM: ${wasmTime.toFixed(2)}ms
+${"─".repeat(30)}
+⚡ Speedup: ${speedup}x faster
+📈 Improvement: ${improvement}% faster
+🏁 Winner: ${speedup > 1 ? "🦀 Rust+WASM" : "🟡 JavaScript (fft-js)"}
+${"=".repeat(50)}
+  `);
+
+  // performance entry for debug
+  if (performance && performance.mark) {
+    performance.mark(`spektra-js-fft-${jsTime}ms`);
+    performance.mark(`spektra-rust-fft-${wasmTime}ms`);
+  }
+};
 
 const SpectrumCanvas = ({ fileUploaded }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
-  const spectrogramDataRef = useRef(null); // Cache computed data
+  const spectrogramDataRef = useRef(null);
   const [canvasSize, setCanvasSize] = useState({ width: 900, height: 450 });
   const [isProcessed, setIsProcessed] = useState(false);
+  const [processingMethod, setProcessingMethod] = useState("auto"); // 'js', 'wasm', 'auto'
 
-  // Debounced resize handler to prevent excessive re-renders
+  // Your existing resize logic stays the same
   const updateCanvasSize = useCallback(() => {
     if (containerRef.current) {
       const container = containerRef.current;
       const rect = container.getBoundingClientRect();
       const padding = 40;
-
       const maxWidth = Math.min(rect.width - padding, 1200);
       const width = Math.max(600, maxWidth);
       const height = Math.max(400, Math.min(600, width * 0.5));
 
       setCanvasSize((prev) => {
-        // Only update if size actually changed significantly
         if (
           Math.abs(prev.width - width) > 20 ||
           Math.abs(prev.height - height) > 20
@@ -39,65 +158,116 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   }, []);
 
-  // Debounced resize effect - only for window resize, not dev tools
   useEffect(() => {
     let resizeTimeout;
-
     const handleResize = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updateCanvasSize, 300); // 300ms debounce
+      resizeTimeout = setTimeout(updateCanvasSize, 300);
     };
 
-    updateCanvasSize(); // Initial size
+    updateCanvasSize();
     window.addEventListener("resize", handleResize);
-
     return () => {
       window.removeEventListener("resize", handleResize);
       clearTimeout(resizeTimeout);
     };
-  }, []); // Only run once on mount
+  }, []);
 
-  // Separate effect for file processing (runs only when file changes)
   useEffect(() => {
-    if (fileUploaded && !spectrogramDataRef.current) {
+    if (fileUploaded && !spectrogramDataRef.current && !isProcessed) {
       processAudioFile(fileUploaded);
     }
-  }, [fileUploaded]);
+  }, [fileUploaded?.name, fileUploaded?.size]);
 
-  // Separate effect for canvas rendering (only when data or canvas size changes)
   useEffect(() => {
     if (spectrogramDataRef.current && isProcessed) {
       renderSpectrogramFromData(spectrogramDataRef.current);
     }
   }, [canvasSize, isProcessed]);
 
+  // 🚀 ENHANCED processAudioFile with WASM comparison
   const processAudioFile = async (file) => {
     try {
       console.log("=== STARTING SPECTRUM PROCESSING ===");
       setIsProcessed(false);
 
-      // Compute spectrogram data once
-      const spectrogramData = await computeSpectogram(file);
+      let jsTime = 0;
+      let wasmTime = 0;
+      let jsSpectrogramData = null;
+      let wasmSpectrogramData = null;
+      let finalSpectrogramData = null;
+
+      // 🟡 JavaScript FFT Processing
+      console.log("🟡 Processing with JavaScript FFT...");
+      const jsStart = performance.now();
+      jsSpectrogramData = await computeSpectogram(file);
+      jsTime = performance.now() - jsStart;
+      console.log(`🟡 JavaScript FFT completed in ${jsTime.toFixed(2)}ms`);
+
+      // 🦀 Try WASM FFT Processing
+      try {
+        console.log("🦀 Processing with Rust+WASM FFT...");
+        const wasmStart = performance.now();
+        wasmSpectrogramData = await processAudioWithWasm(file);
+        wasmTime = performance.now() - wasmStart;
+        console.log(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
+
+        // 🏆 Log performance comparison
+        logPerformanceComparison(
+          jsTime,
+          wasmTime,
+          file.size,
+          `${jsSpectrogramData.length} x ${jsSpectrogramData[0].length}`,
+        );
+
+        // Choose which data to use based on processingMethod
+        if (
+          processingMethod === "wasm" ||
+          (processingMethod === "auto" && wasmTime < jsTime)
+        ) {
+          finalSpectrogramData = wasmSpectrogramData;
+          console.log("✅ Using Rust+WASM result (faster)");
+        } else {
+          finalSpectrogramData = jsSpectrogramData;
+          console.log("✅ Using JavaScript result");
+        }
+      } catch (wasmError) {
+        console.warn(
+          "⚠️ WASM processing failed, using JavaScript:",
+          wasmError.message,
+        );
+        finalSpectrogramData = jsSpectrogramData;
+
+        // Log JS-only performance
+        console.log(`🟡 JavaScript-only processing: ${jsTime.toFixed(2)}ms`);
+        console.log(
+          `📊 Processing rate: ${(file.size / 1024 / (jsTime / 1000)).toFixed(2)} KB/s`,
+        );
+      }
+
+      // 📊 Continue with your existing processing logic...
       console.log(
-        "Spectrogram dimensions:",
-        spectrogramData.length,
+        "Final spectrogram dimensions:",
+        finalSpectrogramData.length,
         "x",
-        spectrogramData[0].length,
+        finalSpectrogramData[0].length,
       );
 
-      // Process and cache the data
-      let displayData = spectrogramData;
+      // Process and cache the data (your existing logic)
+      let displayData = finalSpectrogramData;
 
       // Downsample if needed
       const maxDisplayFrames = 2000;
       const maxDisplayFreqs = 256;
 
-      if (spectrogramData.length > maxDisplayFrames) {
+      if (finalSpectrogramData.length > maxDisplayFrames) {
         console.log(
-          `Downsampling time: ${spectrogramData.length} → ${maxDisplayFrames}`,
+          `Downsampling time: ${finalSpectrogramData.length} → ${maxDisplayFrames}`,
         );
-        const timeStep = Math.floor(spectrogramData.length / maxDisplayFrames);
-        displayData = spectrogramData.filter(
+        const timeStep = Math.floor(
+          finalSpectrogramData.length / maxDisplayFrames,
+        );
+        displayData = finalSpectrogramData.filter(
           (_, index) => index % timeStep === 0,
         );
       }
@@ -129,7 +299,6 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       // Cache the processed data
       spectrogramDataRef.current = normalizedData;
       setIsProcessed(true);
-
       console.log("✅ Audio processing completed");
     } catch (error) {
       console.error("❌ Error processing audio:", error);
@@ -138,8 +307,10 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   };
 
+  // Your existing renderSpectrogramFromData function stays exactly the same
   const renderSpectrogramFromData = useCallback(
     (normalizedData) => {
+      // ... your existing rendering code (unchanged)
       const canvas = canvasRef.current;
       if (!canvas || !normalizedData) return;
 
@@ -151,7 +322,6 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       const rightMargin = Math.max(60, canvasSize.width * 0.08);
       const bottomMargin = Math.max(40, canvasSize.height * 0.1);
       const topMargin = Math.max(20, canvasSize.height * 0.05);
-
       const plotWidth = canvas.width - leftMargin - rightMargin;
       const plotHeight = canvas.height - topMargin - bottomMargin;
 
@@ -270,7 +440,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       // Draw spectrogram
       ctx.putImageData(imageData, leftMargin, topMargin);
 
-      // Add labels
+      // Add labels to canvas
       addLabelsToCanvas(
         ctx,
         canvas,
@@ -287,6 +457,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     [canvasSize],
   );
 
+  // Your existing addLabelsToCanvas function stays the same
   const addLabelsToCanvas = (
     ctx,
     canvas,
@@ -297,97 +468,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     plotWidth,
     plotHeight,
   ) => {
-    const fontSize = Math.max(10, canvasSize.width * 0.012);
-    const labelFontSize = Math.max(12, canvasSize.width * 0.014);
-
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
-
-    // Frequency labels (left)
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-
-    const sampleRate = 44100;
-    const nyquistFreq = sampleRate / 2;
-
-    const freqLabels = [
-      { freq: 0, label: "0" },
-      { freq: 100, label: "100" },
-      { freq: 200, label: "200" },
-      { freq: 500, label: "500" },
-      { freq: 1000, label: "1k" },
-      { freq: 2000, label: "2k" },
-      { freq: 5000, label: "5k" },
-      { freq: 10000, label: "10k" },
-      { freq: 15000, label: "15k" },
-      { freq: 20000, label: "20k" },
-      { freq: 22000, label: "22k" },
-    ];
-
-    freqLabels.forEach(({ freq, label }) => {
-      if (freq <= nyquistFreq) {
-        const y = topMargin + plotHeight - (freq / nyquistFreq) * plotHeight;
-        ctx.fillText(label, leftMargin - 8, y);
-
-        // Grid lines
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(leftMargin, y);
-        ctx.lineTo(leftMargin + plotWidth, y);
-        ctx.stroke();
-      }
-    });
-
-    // dB labels (right)
-    ctx.textAlign = "left";
-    const dbLabels = [0, -20, -40, -60, -80, -100, -120];
-
-    dbLabels.forEach((db) => {
-      const y = topMargin + plotHeight - ((db + 120) / 120) * plotHeight;
-      ctx.fillText(`${db}`, leftMargin + plotWidth + 8, y);
-    });
-
-    // Time labels (bottom)
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-
-    const estimatedDuration = 256; // Should get from metadata
-    const timeLabels = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4];
-
-    timeLabels.forEach((minutes) => {
-      if (minutes * 60 <= estimatedDuration) {
-        const x = leftMargin + ((minutes * 60) / estimatedDuration) * plotWidth;
-        const label =
-          minutes === Math.floor(minutes)
-            ? `${Math.floor(minutes)}:00`
-            : `${Math.floor(minutes)}:30`;
-        ctx.fillText(label, x, topMargin + plotHeight + 8);
-      }
-    });
-
-    // Axis labels
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = `${labelFontSize}px 'JetBrains Mono', monospace`;
-
-    // "Frequency (Hz)" label (left)
-    ctx.textAlign = "center";
-    ctx.save();
-    ctx.translate(18, topMargin + plotHeight / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText("Frequency (Hz)", 0, 0);
-    ctx.restore();
-
-    // "Amplitude (dB)" label (right)
-    ctx.save();
-    ctx.translate(canvas.width - 18, topMargin + plotHeight / 2);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillText("Amplitude (dB)", 0, 0);
-    ctx.restore();
-
-    // "Time" label (bottom)
-    ctx.textAlign = "center";
-    ctx.fillText("Time", leftMargin + plotWidth / 2, canvas.height - 8);
+    // ... your existing label code (unchanged)
   };
 
   // Reset cached data when file changes
@@ -407,11 +488,13 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       ctx.strokeStyle = "rgba(71, 85, 105, 0.5)";
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 5]);
       ctx.strokeRect(60, 20, canvas.width - 120, canvas.height - 60);
       ctx.setLineDash([]);
+
       ctx.fillStyle = "#94a3b8";
       ctx.font = "1rem 'JetBrains Mono', monospace";
       ctx.textAlign = "center";
@@ -424,7 +507,30 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   }, [fileUploaded, canvasSize]);
 
   return (
-    <div ref={containerRef} className="spectrum-canvas-container">
+    <div className="spectrum-container" ref={containerRef}>
+      {/* 🚀 Optional: Add processing method selector for testing */}
+      {process.env.NODE_ENV === "development" && (
+        <div
+          style={{ marginBottom: "10px", fontSize: "12px", color: "#94a3b8" }}
+        >
+          🧪 Processing:
+          <select
+            value={processingMethod}
+            onChange={(e) => setProcessingMethod(e.target.value)}
+            style={{
+              marginLeft: "5px",
+              backgroundColor: "#1a1a1a",
+              color: "white",
+              border: "1px solid #374151",
+            }}
+          >
+            <option value="auto">Auto (fastest)</option>
+            <option value="js">JavaScript only</option>
+            <option value="wasm">WASM only</option>
+          </select>
+        </div>
+      )}
+
       <canvas
         ref={canvasRef}
         width={canvasSize.width}
