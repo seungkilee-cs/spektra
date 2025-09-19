@@ -1,4 +1,60 @@
+.spectrum-canvas-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.2);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 .spectrum-canvas {
-  margin-top: 2rem;
-  border-radius: 1rem;
+  border-radius: 12px;
+  background: #0a0a0a;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.spectrum-canvas:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .spectrum-canvas-container {
+    padding: 15px;
+    margin: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .spectrum-canvas-container {
+    padding: 10px;
+    margin: 5px;
+    border-radius: 12px;
+  }
+
+  .spectrum-canvas {
+    border-radius: 8px;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .spectrum-canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
 }

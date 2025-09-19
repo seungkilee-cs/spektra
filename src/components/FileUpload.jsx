@@ -1,29 +1,36 @@
 import React, { useState, useRef } from "react";
-import "../styles/FileUpload.css";
 import { debugLog, debugError } from "../utils/debug";
+import "../styles/FileUpload.css";
 
 const FileUpload = ({ onFileSelect }) => {
-  const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
 
+  // Expandable file formats configuration
+  const supportedFormats = [
+    { type: "audio/mpeg", extension: "MP3", color: "#4285f4" },
+    { type: "audio/flac", extension: "FLAC", color: "#0f9d58" },
+    { type: "audio/x-m4a", extension: "M4A", color: "#ff6900" },
+    { type: "audio/wav", extension: "WAV", color: "#9c27b0" },
+    { type: "audio/ogg", extension: "OGG", color: "#f44336" },
+    { type: "audio/mp4", extension: "AAC", color: "#ff9800" },
+  ];
+
+  const acceptedTypes = supportedFormats.map((format) => format.type);
+
   const handleFiles = (selectedFiles) => {
     const selectedFile = selectedFiles[0];
-    if (
-      ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac"].includes(
-        selectedFile.type,
-      )
-    ) {
-      setFile(selectedFile);
-      debugLog("File added successfully. Details:", {
+
+    if (acceptedTypes.includes(selectedFile.type)) {
+      debugLog("File added successfully:", {
         name: selectedFile.name,
         type: selectedFile.type,
         size: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`,
-        lastModified: new Date(selectedFile.lastModified).toLocaleString(),
       });
       onFileSelect(selectedFile);
     } else {
       debugError("Invalid file type");
+      alert("Please select a supported audio file format.");
     }
   };
 
@@ -41,6 +48,7 @@ const FileUpload = ({ onFileSelect }) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFiles(e.dataTransfer.files);
     }
@@ -58,35 +66,51 @@ const FileUpload = ({ onFileSelect }) => {
   };
 
   return (
-    <div className="file-upload">
-      <form onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+    <div className="file-upload-container">
+      <div
+        className={`file-upload-area ${dragActive ? "drag-active" : ""}`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={onButtonClick}
+      >
         <input
           ref={inputRef}
           type="file"
+          className="file-input"
+          multiple={false}
           onChange={handleChange}
-          accept=".mp3,.m4a,.flac"
+          accept={acceptedTypes.join(",")}
         />
-        <div
-          className={`drop-area ${dragActive ? "drag-active" : ""}`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <p>Drag and drop your audio file here or</p>
-          <button type="button" onClick={onButtonClick}>
-            Upload file
-          </button>
-        </div>
-      </form>
-      {file && (
-        <div className="file-list">
-          <div className="file-item">
-            <p>{file.name}</p>
-            <p>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+
+        <div className="upload-content">
+          <div className="upload-icon">
+            <div className="music-icon">♪</div>
+            <div className="upload-platform"></div>
+          </div>
+
+          <div className="upload-text">
+            <h3>Drop your audio file here</h3>
+            <p>or click to browse</p>
+          </div>
+
+          <div className="file-types">
+            {supportedFormats.map((format, index) => (
+              <span
+                key={format.extension}
+                className="file-type-badge"
+                style={{
+                  "--badge-color": format.color,
+                  animationDelay: `${index * 0.1}s`,
+                }}
+              >
+                {format.extension}
+              </span>
+            ))}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

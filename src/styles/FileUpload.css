@@ -1,75 +1,193 @@
-.file-upload {
+.file-upload-container {
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
+  perspective: 1000px;
 }
 
-.file-upload form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.file-upload-area {
+  position: relative;
+  padding: clamp(30px, 5vw, 50px) clamp(25px, 5vw, 40px);
+  background: rgba(30, 41, 59, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(71, 85, 105, 0.2);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  transform-style: preserve-3d;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.file-upload .drop-area {
-  background-color: #333333; /* dark grey background */
-  border: 0.125rem dashed #cccccc;
-  border-radius: 0.1rem;
-  width: 100%;
-  padding: 1rem;
+.file-upload-area:hover {
+  background: rgba(30, 41, 59, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-5px) rotateX(5deg);
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(59, 130, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.file-upload-area.drag-active {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.6);
+  transform: translateY(-8px) rotateX(8deg);
+  box-shadow:
+    0 40px 80px rgba(59, 130, 246, 0.3),
+    0 0 0 2px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-content {
+  pointer-events: none;
+  text-align: center;
+}
+
+.upload-icon {
+  position: relative;
+  margin: 0 auto clamp(20px, 4vw, 25px);
+  width: clamp(60px, 15vw, 80px);
+  height: clamp(60px, 15vw, 80px);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease;
 }
 
-.file-upload .drop-area.drag-active {
-  background-color: #e0e0e0; /* Slightly darker grey when dragging */
-  border-color: #007bff; /* Blue border to indicate active state */
+.upload-platform {
+  position: absolute;
+  bottom: 8px;
+  width: 60px;
+  height: 6px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 50%;
+  opacity: 0.6;
+  filter: blur(4px);
+  animation: pulse 2s ease-in-out infinite;
 }
 
-.file-upload .drop-area p {
-  font-size: 1rem;
-  margin-bottom: 0.625rem;
+.music-icon {
+  font-size: clamp(2rem, 8vw, 2.8rem);
+  background: linear-gradient(135deg, #ffffff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.3));
+  animation: float 3s ease-in-out infinite;
 }
 
-.file-upload .drop-area button {
-  padding: 0.625rem 1.25rem;
-  font-size: 16px;
-  background-color: #474747; /* Darker grey button */
-  color: #ffffff; /* White text for contrast */
-  border: none;
-  border-radius: 0.3rem;
-  cursor: pointer;
-  transition:
-    background-color 0.3s ease,
-    transform 0.2s ease;
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleX(1.2);
+    opacity: 0.3;
+  }
 }
 
-.file-upload .drop-area button:hover {
-  background-color: #000000; /* Black on hover for emphasis */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
-.file-upload input[type="file"] {
-  display: none; /* Hide the default file input field */
+.upload-text h3 {
+  margin: 0 0 8px 0;
+  font-size: clamp(1.1rem, 4vw, 1.3rem);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
-.file-upload .file-list {
-  margin-top: 1.3rem;
+.upload-text p {
+  margin: 0 0 clamp(20px, 4vw, 25px) 0;
+  font-size: clamp(0.9rem, 3vw, 1rem);
+  color: #94a3b8;
+  font-weight: 400;
 }
 
-.file-upload .file-item {
+.file-types {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.625rem;
-  background-color: #333333; /* Light grey for file item background */
-  border-radius: 0.5rem; /* Rounded corners for consistency */
-  margin-bottom: 0.625rem;
+  flex-wrap: wrap;
+  gap: clamp(6px, 2vw, 8px);
+  justify-content: center;
+  margin-top: clamp(15px, 3vw, 20px);
 }
 
-.file-upload .file-item p {
-  margin: 0; /* Remove default margins for cleaner layout */
+.file-type-badge {
+  padding: clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--badge-color, #3b82f6);
+  color: var(--badge-color, #3b82f6);
+  border-radius: 20px;
+  font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  animation: fadeInScale 0.6s ease-out both;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.file-type-badge:hover {
+  background: var(--badge-color, #3b82f6);
+  color: white;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsive adjustments for perfect fit */
+@media (max-width: 600px) {
+  .file-upload-area {
+    border-radius: 20px;
+  }
+
+  .file-type-badge {
+    margin: 2px;
+  }
+}
+
+@media (max-height: 700px) {
+  .upload-icon {
+    margin-bottom: 15px;
+  }
+
+  .upload-text h3 {
+    margin-bottom: 5px;
+  }
+
+  .upload-text p {
+    margin-bottom: 15px;
+  }
+
+  .file-types {
+    margin-top: 10px;
+  }
 }
