@@ -1,6 +1,6 @@
 # Spektra
 
-![Spektra Landing](./docts/screenshots/Spektra.0.1.1.Landing.png)
+![Spektra Landing](./docs/screenshots/Spektra.0.1.1.Landing.png)
 
 ![Specktra 02](./docs/screenshots/Spektra.0.1.3.Spectogram.png)
 
