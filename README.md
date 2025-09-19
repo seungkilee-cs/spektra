@@ -1,8 +1,7 @@
 # Spektra
 
-|                                            |                                            |
-| :----------------------------------------: | :----------------------------------------: |
-| ![Spektra01](./screenshots/Spektra_01.png) | ![Spektra02](./screenshots/Spektra_02.png) |
+![Spektra01](./screenshots/Spektra_01.png)
+![Spektra02](./screenshots/Spektra_02.png)
 
 Spektra is a static web-based spectrum analyzer that visualizes audio files using Fast Fourier Transform (FFT) to display frequency content over time. Inspired by tools like Spek, it allows users to upload audio files and view detailed spectrograms with professional-grade features like dB scaling, color mapping, and metadata display. Built as a single-page application (SPA) for easy deployment on platforms like GitHub Pages.
 
