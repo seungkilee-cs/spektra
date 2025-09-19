@@ -6,9 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build": "npm run build:wasm && vite build",
+    "build:wasm": "./_scripts/build-wasm.sh",
+    "test": "vitest",
+    "lint": "eslint src --ext js,jsx",
+    "clean": "rm -rf dist/ rust-audio-processor/target/ rust-audio-processor/pkg/",
+    "clean:wasm": "rm -rf src/wasm/*.js src/wasm/*.wasm src/wasm/*.ts",
     "start": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
