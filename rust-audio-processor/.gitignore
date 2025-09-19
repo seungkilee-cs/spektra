@@ -1,24 +1,23 @@
-# Rust/Cargo specific
-/target/
-**/*.rs.bk
-Cargo.lock  # Only ignore if this is a library; keep if it's a binary
+# === BUILD ARTIFACTS (NEVER COMMIT) ===
+/target/                    # All Rust build outputs
+Cargo.lock                 # Lock file (only for libraries)
 
-# WebAssembly build outputs
-/pkg/
+# === WASM BUILD OUTPUTS (REGENERATED) ===
+/pkg/                      # All wasm-pack outputs
 *.wasm
-*.js
+*.js  
 *.ts
 *.d.ts
 wasm-pack.log
 
-# IDE/Editor files
+# === DEVELOPMENT FILES ===
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# === OS FILES ===
 .DS_Store
 .DS_Store?
 ._*
@@ -27,23 +26,7 @@ wasm-pack.log
 ehthumbs.db
 Thumbs.db
 
-# Temporary files
+# === TEMPORARY FILES ===
 *.tmp
 *.temp
 .cache/
-
-# Rust profiling
-perf.data*
-flamegraph.svg
-
-# Build artifacts
-*.o
-*.so
-*.dylib
-*.dll
-*.lib
-*.a
-
-# Debug outputs
-*.pdb
-
