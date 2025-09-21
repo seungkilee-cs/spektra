@@ -2,28 +2,32 @@
 
 From my Javascript implementation to using `fft-js` library, I've been able to keep the code from crashing to finish executing in 13 seconds. But this was still too long. So I decided to write the logic for fft in rust and use WASM to call it from Javascript. Here are the difference in performances.
 
-## 📊 Exact Performance Metrics
+## Methodology
 
-### Test Case 1: MP3 File (10.02 MB, 4:16 duration)
+timer logging
 
-| Metric                | JavaScript (fft-js)    | Rust+WASM (Custom)  | Advantage         |
-| ------------------------- | -------------------------- | ----------------------- | --------------------- |
+## Exact Performance Metrics
+
+### Case 1: MP3 File (10.02 MB, 4:16 duration)
+
+| Metric                | JavaScript (fft-js)        | Rust+WASM (Custom)      | Advantage         |
+| --------------------- | -------------------------- | ----------------------- | ----------------- |
 | Pure FFT Computation  | 12,336ms                   | 832ms                   | Rust 14.8x faster |
 | Total Processing Time | 13,641ms                   | 2,261ms                 | Rust 6.0x faster  |
 | Processing Rate       | 1,761 windows/sec          | 28,914 windows/sec      | Rust 16.4x faster |
 | Memory Efficiency     | Lower (dynamic allocation) | Higher (pre-allocated)  | Rust advantage    |
 | CPU Utilization       | Single-threaded            | Optimized single-thread | Rust advantage    |
 
-### Test Case 2: FLAC File (25.43 MB, 3:41 duration)
+### Case 2: FLAC File (25.43 MB, 3:41 duration)
 
-| Metric                | JavaScript (fft-js) | Rust+WASM (Custom) | Advantage         |
-| ------------------------- | ----------------------- | ---------------------- | --------------------- |
-| Pure FFT Computation  | 11,609ms                | 813ms                  | Rust 14.3x faster |
-| Total Processing Time | 12,878ms                | 2,130ms                | Rust 6.0x faster  |
-| Processing Rate       | 1,784 windows/sec       | 25,485 windows/sec     | Rust 14.3x faster |
-| Consistency           | Variable performance    | Consistent performance | Rust advantage    |
+| Metric                | JavaScript (fft-js)  | Rust+WASM (Custom)     | Advantage         |
+| --------------------- | -------------------- | ---------------------- | ----------------- |
+| Pure FFT Computation  | 11,609ms             | 813ms                  | Rust 14.3x faster |
+| Total Processing Time | 12,878ms             | 2,130ms                | Rust 6.0x faster  |
+| Processing Rate       | 1,784 windows/sec    | 25,485 windows/sec     | Rust 14.3x faster |
+| Consistency           | Variable performance | Consistent performance | Rust advantage    |
 
-## 🔬 Technical Deep Dive
+## Technical Deep Dive
 
 ### Why is Rust Implementation Faster
 
@@ -53,25 +57,25 @@ From my Javascript implementation to using `fft-js` library, I've been able to k
 - Single-threaded execution: Cannot leverage modern CPU architectures
 - JavaScript Numbers: All numbers are 64-bit floats (IEEE 754)
 
-## 🎯 Performance Scaling Analysis
+## Performance Scaling Analysis
 
 ### Core FFT Computation Scaling
 
-Rust performance is consistent:
+Rust performance is consistent and understandable
 
-- MP3 (24,057 windows): 832ms → 28,914 windows/sec
-- FLAC (20,717 windows): 813ms → 25,485 windows/sec
+For MP3 (24,057 windows): 832ms → 28,914 windows/sec
+For FLAC (20,717 windows): 813ms → 25,485 windows/sec
 
 ### JavaScript Performance Variability
 
 JavaScript shows more variation:
 
-- MP3: 12,336ms → 1,761 windows/sec
-- FLAC: 11,609ms → 1,784 windows/sec
+For MP3: 12,336ms → 1,761 windows/sec
+For FLAC: 11,609ms → 1,784 windows/sec
 
 This inconsistency demonstrates JavaScript's unpredictable performance profile.
 
-## 📈 Broader Implications: Right Tool for the Job
+## Broader Implications: Right Tool for the Job
 
 In python, people often joke that the people who know how to write python well, writes as little python as possible. That is, the implementation should always be outsourced to C or Fortran libraries, and the python should be the business logic layer acting as glue to piece together the various libraries written in C.
 
