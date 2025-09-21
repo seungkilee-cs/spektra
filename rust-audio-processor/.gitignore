@@ -1,4 +1,5 @@
 # Rust build outputs
+# include pkg
 /target/
 /pkg/
 Cargo.lock

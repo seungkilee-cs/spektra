@@ -58,6 +58,7 @@ _legacy/*
 
 
 # Rust build artifacts
+# Add in pkg for cleaen up
 rust-audio-processor/target/
 rust-audio-processor/pkg/
 rust-audio-processor/Cargo.lock
