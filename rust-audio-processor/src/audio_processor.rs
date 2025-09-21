@@ -7,14 +7,14 @@ use crate::hann_window::apply_hann_window;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-// Set up panic hook for better WASM debugging (WASM only)
+// set up panic hook for better WASM debugging (WASM only)
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();
 }
 
-// Import console.log for debugging (WASM only)
+// import console.log for debugging (WASM only) ->
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 extern "C" {
@@ -22,7 +22,7 @@ extern "C" {
     fn log(s: &str);
 }
 
-// Console logging macro - works in both WASM and native
+// Console logging macro - works in both WASM and rust 
 macro_rules! console_log {
     ($($t:tt)*) => {
         #[cfg(target_arch = "wasm32")]
@@ -41,7 +41,7 @@ pub struct SpectrogramProcessor {
 impl SpectrogramProcessor {
     // Create new SpectrogramProcessor
     pub fn new(fft_size: usize) -> SpectrogramProcessor {
-        console_log!("🦀 Creating SpectrogramProcessor with FFT size: {}", fft_size);
+        console_log!("Creating SpectrogramProcessor with FFT size: {}", fft_size);
         assert!(fft_size.is_power_of_two(), "FFT size must be power of 2");
         SpectrogramProcessor { fft_size }
     }
@@ -76,7 +76,7 @@ impl SpectrogramProcessor {
 
     // Process complete spectrogram from audio data
     pub fn compute_spectrogram(&self, audio_data: &[f32], overlap: f32) -> Vec<f32> {
-        console_log!("🦀 Starting spectrogram computation for {} samples", audio_data.len());
+        console_log!("Starting spectrogram computation for {} samples", audio_data.len());
         
         let hop_size = ((self.fft_size as f32) * (1.0 - overlap)) as usize;
         let num_windows = if audio_data.len() >= self.fft_size {
@@ -85,7 +85,7 @@ impl SpectrogramProcessor {
             0
         };
         
-        console_log!("🦀 Processing {} windows with hop size {}", num_windows, hop_size);
+        console_log!("Processing {} windows with hop size {}", num_windows, hop_size);
         
         let mut spectrogram_flat = Vec::new();
         
@@ -101,11 +101,11 @@ impl SpectrogramProcessor {
             
             // Progress logging
             if num_windows > 100 && window_idx % (num_windows / 10) == 0 {
-                console_log!("🦀 Progress: {}/{} windows", window_idx, num_windows);
+                console_log!("Progress: {}/{} windows", window_idx, num_windows);
             }
         }
         
-        console_log!("🦀 Spectrogram generation complete: {} x {}", num_windows, self.fft_size / 2);
+        console_log!("Spectrogram generation complete: {} x {}", num_windows, self.fft_size / 2);
         spectrogram_flat
     }
 }

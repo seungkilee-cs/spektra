@@ -1,8 +1,9 @@
 // utility for math
 use std::f32::consts::PI;
 
+// Ported from js 
 // Bit Reversal Function
-// Reverses the bits of `index` assuming `total_bits` bits.
+// Reverses the bits of index assuming total_bits bits.
 // assert_eq!(bit_reverse(1, 3), 4); // 001 -> 100
 // assert_eq!(bit_reverse(3, 3), 6); // 011 -> 110
 // assert_eq!(bit_reverse(5, 4), 10); // 0101 -> 1010
@@ -61,8 +62,8 @@ impl Complex {
 }
 
 // Twiddle Factor Generation
-// Generates N complex roots of unity (twiddle factors).
-// Used to combine Discrete Fourier Transforms into a larger one.
+// generates N complex roots of unity (twiddle factors).
+// used to combine discrete Fourier Transforms into a larger one.
 // W_N^k = e^(-2πik/N) for k = 0, 1, ..., N-1
 pub fn generate_twiddle_factor(n: usize) -> Vec<Complex> {
     (0..n).map(|k| { 
@@ -75,9 +76,9 @@ pub fn generate_twiddle_factor(n: usize) -> Vec<Complex> {
 }
 
 // Butterfly Operationsa
-// Performs the basic FFT butterfly operation.
-// Combines two complex numbers using a twiddle factor.
-// Returns the "upper" and "lower" results after scaling and alignment.
+// performs the basic FFT butterfly operation.
+// combines two complex numbers using a twiddle factor.
+// returns the "upper" and "lower" results after scaling and alignment.
 pub fn butterfly_operation(a: Complex, b: Complex, twiddle: Complex) ->  (Complex, Complex) {
     let twiddle_b = Complex::multiply(twiddle, b);
     let upper = Complex::add(a, twiddle_b);
@@ -178,7 +179,7 @@ mod tests {
             Complex { real: 1.0, imag: -1.0 },  // Conjugate multiplication
         ];
         let expected = vec![
-            Complex { real: -5.0, imag: 10.0 }, // (1×3-2×4, 1×4+2×3) = (3-8, 4+6) = -5+10i ✅
+            Complex { real: -5.0, imag: 10.0 }, // (1×3-2×4, 1×4+2×3) = (3-8, 4+6) = -5+10i 
             Complex { real: 3.0, imag: 5.0 },   // 2×1.5 + i×2×2.5 = 3+5i
             Complex { real: -1.0, imag: 0.0 },  // i×i = -1+0i
             Complex { real: 2.0, imag: 0.0 },   // (1+i)(1-i) = 1-i² = 1-(-1) = 2
@@ -198,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_twiddle_factors() {
-        // Test twiddle factor generation for common FFT sizes
+        // test twiddle factor generation for common FFT sizes
         let test_sizes = vec![2, 4, 8];
         
         for &n in &test_sizes {
@@ -222,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_butterfly_operation() {
-        // Test cases for butterfly operation: (a, b, twiddle) -> (upper, lower)
+        // test cases for butterfly operation: (a, b, twiddle) -> (upper, lower)
         let test_cases = vec![
             // (a, b, twiddle, expected_upper, expected_lower)
             (
@@ -244,13 +245,13 @@ mod tests {
         for (i, (a, b, twiddle, expected_upper, expected_lower)) in test_cases.iter().enumerate() {
             let (upper, lower) = butterfly_operation(*a, *b, *twiddle);
             
-            // Test upper result
+            // test upper result
             assert!((upper.real - expected_upper.real).abs() < 1e-6, 
                 "Butterfly test {} upper real: expected {}, got {}", i, expected_upper.real, upper.real);
             assert!((upper.imag - expected_upper.imag).abs() < 1e-6, 
                 "Butterfly test {} upper imag: expected {}, got {}", i, expected_upper.imag, upper.imag);
                 
-            // Test lower result  
+            // test lower result  
             assert!((lower.real - expected_lower.real).abs() < 1e-6, 
                 "Butterfly test {} lower real: expected {}, got {}", i, expected_lower.real, lower.real);
             assert!((lower.imag - expected_lower.imag).abs() < 1e-6, 
