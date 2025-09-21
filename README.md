@@ -16,12 +16,14 @@ Old habits die hard, and even when purchasing from trusted platforms like Qobuz,
 
 So naturally, this led to the idea behind Spektra: a lightweight, client-side, static web based audio spectrum analyzer, designed for universal accessibility and ease of use. My goal was to create a trustworthy tool that puts the power of spectral verification at users’ (mostly my) fingertips, without the hassle of installation or OS limitations.
 
+So my goal was to make "Spek, but for Web."
+
 ## Features
 
 - Audio File Upload: Supports MP3, M4A, FLAC, and more via drag-and-drop or file selection.
 - Spectrogram Visualization: Displays frequency spectrum with logarithmic dB scaling and Spek-like color mapping.
 - Metadata Display: Shows file details like bitrate, sample rate, codec, and duration in a compact, expandable header.
-- Professional Labels: Frequency (Hz) on left, dB on right, time on bottom – matching industry standards.
+- Professional Labels: Frequency (Hz) on left, dB on right, time on bottom to match industry standards.
 - Performance Optimizations: Downsampling for large files to ensure smooth rendering.
 - Cross Browser Compatibility: Uses Web Audio API with fallbacks for broad support.
 - Static Deployment: Runs entirely client-side with no backend required. Your audio is never stored on any server.
@@ -118,4 +120,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ---
 
-Built by [seungkilee-cs](https://github.com/seungkilee-cs). Inspired by Spek and the need for a lightweight, web-based audio analyzer.
+Built by [seungkilee-cs](https://github.com/seungkilee-cs). Inspired by [Spek](https://spek.cc) and the need for a lightweight, web-based audio analyzer.
