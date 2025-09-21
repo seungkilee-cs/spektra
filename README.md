@@ -76,7 +76,7 @@ Example metadata display:
 
 - **Frontend**: React.js for static page web app.
 - **Audio Processing**: Web Audio API for decoding audio files.
-- Fast Fourier Transform: Custom implementation of FFT in Javascript -> changed to fft-js library -> changed to 🦀 Rust + WASM custom implementation.
+- Fast Fourier Transform: Custom implementation of FFT in Javascript -> changed to fft-js library -> changed to Rust + WASM custom implementation.
 - **Metadata**: music-metadata-browser for extracting audio tags.
 - **Visualization**: HTML Canvas for efficient pixel rendering.
 - **Build Tools**: Vite for fast development and bundling.
@@ -96,8 +96,8 @@ Checkout the [performance differences](./docs/fft-js_rust+wasm_comparison.md).
 - [x] Revamp the Ui
       Modernize the UI with a dark theme, responsive design, zoom/pan functionality for spectrograms, and customizable color schemes. Current vibe I am shooting for is "Spek for Web."
 
-- [ ] Add More File Format Support
-      Want to add support for WAV, OGG, ALAC.
+- [x] Add More File Format Support
+      Want to add support for WAV, OGG, ALAC -> added formats Universally supported browser
 
 - [ ] Responsive Design
       Updating CSS for visuauls and for future mobile support

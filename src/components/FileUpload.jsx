@@ -14,6 +14,9 @@ const FileUpload = ({ onFileSelect }) => {
     { type: "audio/wav", extension: "WAV", color: "#9c27b0" },
     { type: "audio/ogg", extension: "OGG", color: "#f44336" },
     { type: "audio/mp4", extension: "AAC", color: "#ff9800" },
+    { type: "audio/x-aiff", extension: "AIFF", color: "#795548" },
+    { type: "audio/webm", extension: "WEBM", color: "#607d8b" },
+    { type: "audio/opus", extension: "OPUS", color: "#e91e63" },
   ];
 
   const acceptedTypes = supportedFormats.map((format) => format.type);
