@@ -1,4 +1,4 @@
-# [Spektra](https://www.seungkilee.com/Spektra)
+# [Spektra](https://www.seungkilee.com/spektra)
 
 ![Spektra Landing](./docs/screenshots/Spektra.0.1.1.Landing.png)
 
@@ -30,7 +30,7 @@ So my goal was to make "Spek, but for Web."
 
 ## Demo
 
-Check out [Spektra](https://www.seungkilee.com/Spektra) or install and run it yourself.
+Check out [Spektra](https://www.seungkilee.com/spektra) or install and run it yourself.
 
 ## Installation
 
