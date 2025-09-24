@@ -14,7 +14,7 @@ Now, at this point in my audio hobby, I have to add the caveat that I believe a 
 
 Old habits die hard, and even when purchasing from trusted platforms like Qobuz, I usually validate that the files truly contain the claimed high fidelity audio data. Tools like [Spek](https://spek.cc) have been invaluable in this regard, but their unavailability on certain platforms like Linux at times, along with the requirement for needing to have the executable installed on your machine led to cumbersome experiences in my rituals of audio data validations. This made me long for a lightweight, cross-platform analyzer accessible anytime.
 
-So naturally, this led to the idea behind Spektra: a lightweight, client-side, static web based audio spectrum analyzer, designed for universal accessibility and ease of use. My goal was to create a trustworthy tool that puts the power of spectral verification at users’ (mostly my) fingertips, without the hassle of installation or OS limitations.
+So naturally, this led to the idea behind Spektra: a lightweight, client-side, static web based audio spectrum analyzer, designed for universal accessibility and ease of use. The idea was to create a trustworthy tool that anyone can use without the hassle of installation or OS limitations.
 
 So my goal was to make "Spek, but for Web."
 
