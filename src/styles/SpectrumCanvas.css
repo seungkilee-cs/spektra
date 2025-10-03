@@ -1,28 +1,30 @@
+
 .spectrum-canvas-container {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  margin: 0;
+  padding: clamp(16px, 3vw, 26px);
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(30, 41, 59, 0.2);
-  border-radius: 16px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: clamp(14px, 3vw, 24px);
+  background: rgba(15, 23, 42, 0.35);
+  border-radius: var(--card-radius);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(71, 85, 105, 0.3);
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 12px 28px rgba(2, 6, 23, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .spectrum-canvas {
-  border-radius: 12px;
+  width: 100%;
+  max-width: 100%;
+  border-radius: clamp(10px, 2vw, 16px);
   background: #0a0a0a;
   box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -30,58 +32,58 @@
 
 .spectrum-canvas:hover {
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 10px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
 }
 
 /* Fixed processing indicator positioning */
 .processing-indicator {
   position: absolute;
-  top: -35px;
+  top: clamp(-32px, -6vw, -20px);
   left: 50%;
   transform: translateX(-50%);
-  font-size: 14px;
+  font-size: clamp(12px, 2vw, 14px);
   color: #fbbf24;
   font-family: "JetBrains Mono", monospace;
   background: rgba(0, 0, 0, 0.9);
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: clamp(6px, 2vw, 12px) clamp(14px, 3vw, 20px);
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   white-space: nowrap;
   z-index: 10;
 }
 
 /* Responsive adjustments */
+@media (max-width: 1024px) {
+  .spectrum-canvas-container {
+    width: min(100%, 92vw);
+  }
+}
+
 @media (max-width: 768px) {
   .spectrum-canvas-container {
-    padding: 15px;
-    margin: 10px;
+    padding: clamp(10px, 4vw, 20px);
+    border-radius: clamp(12px, 4vw, 18px);
+    gap: clamp(10px, 4vw, 18px);
   }
 
   .processing-indicator {
-    font-size: 12px;
-    padding: 6px 12px;
-    top: -30px;
+    top: clamp(-28px, -5vw, -18px);
   }
 }
 
 @media (max-width: 600px) {
-  .spectrum-canvas-container {
-    padding: 10px;
-    margin: 5px;
-    border-radius: 12px;
-  }
-
   .spectrum-canvas {
-    border-radius: 8px;
+    border-radius: clamp(8px, 4vw, 14px);
   }
+}
 
+@media (max-width: 480px) {
   .processing-indicator {
     font-size: 11px;
-    padding: 5px 10px;
-    top: -25px;
+    padding: clamp(4px, 3vw, 8px) clamp(10px, 6vw, 14px);
   }
 }
 

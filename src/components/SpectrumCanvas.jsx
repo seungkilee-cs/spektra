@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useId } from "react";
 import { processAudioWithRustFFT } from "../utils/wasmAudioProcessor";
 import { debugLog, debugError } from "../utils/debug";
 import "../styles/SpectrumCanvas.css";
@@ -8,30 +8,65 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   const containerRef = useRef(null);
   const spectrogramDataRef = useRef(null);
   const audioMetadataRef = useRef(null);
+  const audioContextRef = useRef(null);
   const [canvasSize, setCanvasSize] = useState({ width: 900, height: 450 });
   const [isProcessed, setIsProcessed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const canvasDescriptionId = useId();
+
+  const getOrCreateAudioContext = useCallback(async () => {
+    if (typeof window === "undefined") return null;
+
+    if (!audioContextRef.current || audioContextRef.current.state === "closed") {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        throw new Error("Web Audio API not supported in this browser");
+      }
+      audioContextRef.current = new AudioContextClass();
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      try {
+        await audioContextRef.current.resume();
+      } catch (resumeError) {
+        debugError("Failed to resume AudioContext", resumeError);
+      }
+    }
+
+    return audioContextRef.current;
+  }, []);
 
   // Debounced resize handler
   const updateCanvasSize = useCallback(() => {
-    if (containerRef.current) {
-      const container = containerRef.current;
-      const rect = container.getBoundingClientRect();
-      const padding = 40;
-      const maxWidth = Math.min(rect.width - padding, 1200);
-      const width = Math.max(600, maxWidth);
-      const height = Math.max(400, Math.min(600, width * 0.5));
+    if (!containerRef.current) return;
 
-      setCanvasSize((prev) => {
-        if (
-          Math.abs(prev.width - width) > 20 ||
-          Math.abs(prev.height - height) > 20
-        ) {
-          return { width, height };
-        }
-        return prev;
-      });
-    }
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+    const computedStyle = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+    const horizontalPadding = paddingLeft + paddingRight;
+    const minWidth = 280;
+    const maxWidth = 1200;
+    const availableWidth = Math.max(rect.width - horizontalPadding, minWidth);
+    const width = Math.min(Math.max(availableWidth, minWidth), maxWidth);
+    const aspectRatio = width <= 640 ? 0.75 : 0.55;
+    const minHeight = 220;
+    const maxHeight = 560;
+    const height = Math.min(
+      Math.max(width * aspectRatio, minHeight),
+      maxHeight,
+    );
+
+    setCanvasSize((prev) => {
+      if (
+        Math.abs(prev.width - width) > 10 ||
+        Math.abs(prev.height - height) > 10
+      ) {
+        return { width, height };
+      }
+      return prev;
+    });
   }, []);
 
   useEffect(() => {
@@ -56,12 +91,6 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   }, [fileUploaded]);
 
-  useEffect(() => {
-    if (spectrogramDataRef.current && isProcessed) {
-      renderSpectrogramFromData(spectrogramDataRef.current);
-    }
-  }, [canvasSize, isProcessed]);
-
   const processAudioFile = async (file) => {
     if (isProcessing) return;
 
@@ -70,15 +99,15 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       setIsProcessing(true);
       setIsProcessed(false);
 
-      // WASM-only FFT Processing
-      console.log("🦀 Processing with Rust+WASM FFT...");
       const wasmStart = performance.now();
       const spectrogramData = await processAudioWithRustFFT(file, 1024, 0.5);
       const wasmTime = performance.now() - wasmStart;
 
       // Get audio metadata for proper time/frequency scaling
-      const audioContext = new (window.AudioContext ||
-        window.webkitAudioContext)();
+      const audioContext = await getOrCreateAudioContext();
+      if (!audioContext) {
+        throw new Error("AudioContext could not be initialised");
+      }
       const arrayBuffer = await file.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
@@ -89,12 +118,14 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       };
 
       console.log(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
-      console.log(
-        `📊 Generated spectrogram: ${spectrogramData.length} x ${spectrogramData[0].length}`,
-      );
+      if (spectrogramData.length > 0) {
+        console.log(
+          `📊 Generated spectrogram: ${spectrogramData.length} x ${spectrogramData[0].length}`,
+        );
+      }
 
       // Process and cache the data
-      let displayData = spectrogramData;
+      let displayData = spectrogramData.length ? spectrogramData : [];
 
       // Downsample if needed
       const maxDisplayFrames = 2000;
@@ -110,7 +141,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         );
       }
 
-      if (displayData[0].length > maxDisplayFreqs) {
+      if (displayData.length && displayData[0].length > maxDisplayFreqs) {
         console.log(
           `⬇️ Downsampling frequency: ${displayData[0].length} → ${maxDisplayFreqs}`,
         );
@@ -118,6 +149,13 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         displayData = displayData.map((frame) =>
           frame.filter((_, index) => index % freqStep === 0),
         );
+      }
+
+      if (!displayData.length || !displayData[0]?.length) {
+        spectrogramDataRef.current = [];
+        setIsProcessed(true);
+        console.log("✅ WASM audio processing completed (no FFT frames)");
+        return;
       }
 
       // Convert to dB and normalize
@@ -146,35 +184,30 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   };
 
-  // Spectrogram rendering function
   const renderSpectrogramFromData = useCallback(
     (normalizedData) => {
       const canvas = canvasRef.current;
-      if (!canvas || !normalizedData) return;
+      if (!canvas || !normalizedData || !normalizedData.length) return;
 
       console.log("=== RENDERING SPECTROGRAM ===");
       const ctx = canvas.getContext("2d");
 
-      // Updated margins to accommodate dB scale on the right
       const leftMargin = 70;
-      const rightMargin = 60; // Increased for dB scale
+      const rightMargin = 60;
       const bottomMargin = 50;
       const topMargin = 30;
       const plotWidth = canvas.width - leftMargin - rightMargin;
       const plotHeight = canvas.height - topMargin - bottomMargin;
 
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate rendering params
       const timeBins = normalizedData.length;
       const freqBins = normalizedData[0].length;
       const binWidth = plotWidth / timeBins;
       const binHeight = plotHeight / freqBins;
 
-      // Color mapping function (Spek-like colors)
       const spekColorMap = (normalizedMagnitude) => {
         const t = Math.max(0, Math.min(1, normalizedMagnitude));
         let r, g, b;
@@ -214,7 +247,6 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         return { r, g, b };
       };
 
-      // Direct pixel drawing (more accurate than ImageData for alignment)
       normalizedData.forEach((frame, timeIndex) => {
         frame.forEach((magnitude, freqIndex) => {
           const color = spekColorMap(magnitude);
@@ -227,138 +259,107 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         });
       });
 
-      // Add labels
-      addLabelsToCanvas(
-        ctx,
-        canvas,
-        leftMargin,
-        rightMargin,
-        topMargin,
-        bottomMargin,
-        plotWidth,
-        plotHeight,
-      );
+      const fontSize = Math.max(10, Math.min(12, canvasSize.width / 80));
+      ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
+      ctx.fillStyle = "#94a3b8";
+
+      const duration = audioMetadataRef.current?.duration || 240;
+      const maxFreq = audioMetadataRef.current?.nyquistFreq || 22050;
+
+      ctx.textAlign = "center";
+      const timeSteps = Math.min(10, Math.floor(plotWidth / 80));
+      for (let i = 0; i <= timeSteps; i++) {
+        const x = leftMargin + (i * plotWidth) / timeSteps;
+        const timeValue = (i * duration) / timeSteps;
+        const minutes = Math.floor(timeValue / 60);
+        const seconds = Math.floor(timeValue % 60);
+        const timeLabel = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+        ctx.fillText(timeLabel, x, canvas.height - bottomMargin / 2);
+
+        if (i > 0 && i < timeSteps) {
+          ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, topMargin);
+          ctx.lineTo(x, canvas.height - bottomMargin);
+          ctx.stroke();
+        }
+      }
+
+      ctx.textAlign = "right";
+      const freqSteps = Math.min(8, Math.floor(plotHeight / 40));
+      for (let i = 0; i <= freqSteps; i++) {
+        const y = canvas.height - bottomMargin - (i * plotHeight) / freqSteps;
+        const freqValue = (i * maxFreq) / freqSteps;
+        const freqLabel =
+          freqValue >= 1000
+            ? `${(freqValue / 1000).toFixed(1)}k`
+            : `${Math.floor(freqValue)}`;
+
+        ctx.fillText(freqLabel, leftMargin - 10, y + fontSize / 2);
+
+        if (i > 0 && i < freqSteps) {
+          ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 4]);
+          ctx.beginPath();
+          ctx.moveTo(leftMargin, y);
+          ctx.lineTo(leftMargin + plotWidth, y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.textAlign = "left";
+      const dbSteps = 6;
+      const dbRange = 120;
+      for (let i = 0; i <= dbSteps; i++) {
+        const y = topMargin + (i * plotHeight) / dbSteps;
+        const dbValue = -(dbRange * (dbSteps - i)) / dbSteps;
+        const dbLabel = `${dbValue}dB`;
+
+        ctx.fillText(dbLabel, leftMargin + plotWidth + 10, y + fontSize / 2);
+
+        if (i > 0 && i < dbSteps) {
+          ctx.strokeStyle = "rgba(71, 85, 105, 0.1)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([1, 3]);
+          ctx.beginPath();
+          ctx.moveTo(leftMargin, y);
+          ctx.lineTo(leftMargin + plotWidth, y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.setLineDash([]);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = `${fontSize + 1}px 'JetBrains Mono', monospace`;
+      ctx.fillText("Time", canvas.width / 2, canvas.height - 8);
+
+      ctx.save();
+      ctx.translate(20, canvas.height / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("Frequency (Hz)", 0, 0);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(canvas.width - 20, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText("Amplitude (dB)", 0, 0);
+      ctx.restore();
 
       console.log("✅ Spectrogram rendering completed");
     },
     [canvasSize],
   );
 
-  const addLabelsToCanvas = (
-    ctx,
-    canvas,
-    leftMargin,
-    rightMargin,
-    topMargin,
-    bottomMargin,
-    plotWidth,
-    plotHeight,
-  ) => {
-    const fontSize = Math.max(10, Math.min(12, canvasSize.width / 80));
-    ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
-    ctx.fillStyle = "#94a3b8";
-
-    // Get actual audio duration and frequency range
-    const duration = audioMetadataRef.current?.duration || 240; // fallback to 4 minutes
-    const maxFreq = audioMetadataRef.current?.nyquistFreq || 22050; // fallback to 22kHz
-
-    // Time axis (bottom)
-    ctx.textAlign = "center";
-    const timeSteps = Math.min(10, Math.floor(plotWidth / 80));
-    for (let i = 0; i <= timeSteps; i++) {
-      const x = leftMargin + (i * plotWidth) / timeSteps;
-      const timeValue = (i * duration) / timeSteps;
-      const minutes = Math.floor(timeValue / 60);
-      const seconds = Math.floor(timeValue % 60);
-      const timeLabel = `${minutes}:${seconds.toString().padStart(2, "0")}`;
-
-      ctx.fillText(timeLabel, x, canvas.height - bottomMargin / 2);
-
-      // Grid lines
-      if (i > 0 && i < timeSteps) {
-        ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([2, 4]);
-        ctx.beginPath();
-        ctx.moveTo(x, topMargin);
-        ctx.lineTo(x, canvas.height - bottomMargin);
-        ctx.stroke();
-      }
+  useEffect(() => {
+    if (spectrogramDataRef.current && isProcessed) {
+      renderSpectrogramFromData(spectrogramDataRef.current);
     }
-
-    // Frequency axis (left)
-    ctx.textAlign = "right";
-    const freqSteps = Math.min(8, Math.floor(plotHeight / 40));
-    for (let i = 0; i <= freqSteps; i++) {
-      const y = canvas.height - bottomMargin - (i * plotHeight) / freqSteps;
-      const freqValue = (i * maxFreq) / freqSteps;
-      const freqLabel =
-        freqValue >= 1000
-          ? `${(freqValue / 1000).toFixed(1)}k`
-          : `${Math.floor(freqValue)}`;
-
-      ctx.fillText(freqLabel, leftMargin - 10, y + fontSize / 2);
-
-      // Grid lines
-      if (i > 0 && i < freqSteps) {
-        ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([2, 4]);
-        ctx.beginPath();
-        ctx.moveTo(leftMargin, y);
-        ctx.lineTo(leftMargin + plotWidth, y);
-        ctx.stroke();
-      }
-    }
-
-    // NEW: dB scale on the right side
-    ctx.textAlign = "left";
-    const dbSteps = 6;
-    const dbRange = 120; // -120dB to 0dB
-    for (let i = 0; i <= dbSteps; i++) {
-      const y = topMargin + (i * plotHeight) / dbSteps;
-      const dbValue = -(dbRange * (dbSteps - i)) / dbSteps; // 0, -20, -40, -60, -80, -100, -120
-      const dbLabel = `${dbValue}dB`;
-
-      ctx.fillText(dbLabel, leftMargin + plotWidth + 10, y + fontSize / 2);
-
-      // Subtle grid lines for dB scale
-      if (i > 0 && i < dbSteps) {
-        ctx.strokeStyle = "rgba(71, 85, 105, 0.1)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([1, 3]);
-        ctx.beginPath();
-        ctx.moveTo(leftMargin, y);
-        ctx.lineTo(leftMargin + plotWidth, y);
-        ctx.stroke();
-      }
-    }
-
-    // Reset line dash
-    ctx.setLineDash([]);
-
-    // Axis labels
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = `${fontSize + 1}px 'JetBrains Mono', monospace`;
-
-    // Time label
-    ctx.fillText("Time", canvas.width / 2, canvas.height - 8);
-
-    // Frequency label (rotated, left side)
-    ctx.save();
-    ctx.translate(20, canvas.height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText("Frequency (Hz)", 0, 0);
-    ctx.restore();
-
-    // NEW: Amplitude label (rotated, right side)
-    ctx.save();
-    ctx.translate(canvas.width - 20, canvas.height / 2);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillText("Amplitude (dB)", 0, 0);
-    ctx.restore();
-  };
+  }, [canvasSize, isProcessed, renderSpectrogramFromData]);
 
   // Reset cached data when file changes
   useEffect(() => {
@@ -369,6 +370,15 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       setIsProcessing(false);
     }
   }, [fileUploaded]);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
   // Placeholder rendering
   useEffect(() => {
@@ -398,19 +408,32 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   }, [fileUploaded, canvasSize]);
 
   return (
-    <div className="spectrum-canvas-container" ref={containerRef}>
+    <div
+      className="spectrum-canvas-container"
+      ref={containerRef}
+      aria-busy={isProcessing}
+    >
       {/* Fixed processing indicator positioning */}
       {isProcessing && (
-        <div className="processing-indicator">
+        <div className="processing-indicator" role="status" aria-live="polite">
           🦀 Processing with Rust+WASM...
         </div>
       )}
+
+      <p id={canvasDescriptionId} className="sr-only">
+        {audioMetadataRef.current
+          ? `Spectrogram visualization. Duration ${audioMetadataRef.current.duration.toFixed(1)} seconds at ${audioMetadataRef.current.sampleRate} hertz.`
+          : "Spectrogram visualization of uploaded audio."}
+      </p>
 
       <canvas
         ref={canvasRef}
         width={canvasSize.width}
         height={canvasSize.height}
         className="spectrum-canvas"
+        role="img"
+        aria-label="Audio spectrogram visualization"
+        aria-describedby={canvasDescriptionId}
       />
     </div>
   );

@@ -87,9 +87,9 @@ function App() {
 
   // Analysis view
   return (
-    <div className="app-analysis">
-      <div className="analysis-header">
-        <div className="title-section">
+    <div className="app-root">
+      <div className="app-analysis">
+        <div className="analysis-header">
           <h1 className="app-title-small">Spektra</h1>
           <button
             className="new-file-btn"
@@ -100,17 +100,19 @@ function App() {
           </button>
         </div>
 
-        {metadata && <AudioMetadataHeader metadata={metadata} file={file} />}
-      </div>
+        <div className="analysis-body">
+          {metadata && <AudioMetadataHeader metadata={metadata} file={file} />}
 
-      <div className="spectrum-section">
-        {isProcessing && (
-          <div className="processing-overlay">
-            <div className="processing-spinner"></div>
-            <p>Processing audio file...</p>
+          <div className="spectrum-section">
+            {isProcessing && (
+              <div className="processing-overlay">
+                <div className="processing-spinner"></div>
+                <p>Processing audio file...</p>
+              </div>
+            )}
+            <SpectrumCanvas fileUploaded={file} />
           </div>
-        )}
-        <SpectrumCanvas fileUploaded={file} />
+        </div>
       </div>
     </div>
   );

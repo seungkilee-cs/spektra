@@ -1,8 +1,9 @@
 // AudioMetadataHeader.jsx
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 
 const AudioMetadataHeader = ({ metadata, file }) => {
   const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
 
   if (!metadata || !file) return null;
 
@@ -11,7 +12,13 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     return `${mb} MB`;
   };
 
-  const compactFormat = `📊 ${file.name} | ${formatFileSize(file.size)} | ${metadata.codec || "Unknown"}, ${metadata.bitrate}, ${metadata.sampleRate} Hz, ${metadata.duration}`;
+  const handleToggle = () => {
+    setExpanded((prev) => !prev);
+  };
+
+  const compactFormat = `📊 ${file.name} | ${formatFileSize(file.size)} | ${
+    metadata.codec || "Unknown"
+  }, ${metadata.bitrate}, ${metadata.sampleRate} Hz, ${metadata.duration}`;
 
   const detailedInfo = {
     "File Name": file.name,
@@ -25,23 +32,39 @@ const AudioMetadataHeader = ({ metadata, file }) => {
   };
 
   return (
-    <div
-      className="metadata-header"
-      onClick={() => setExpanded(!expanded)}
-      title="Click to toggle detailed metadata"
+    <section
+      className={`metadata-panel ${expanded ? "metadata-panel--expanded" : ""}`}
+      aria-labelledby={detailsId}
     >
-      <div className="metadata-compact">{compactFormat}</div>
+      <button
+        type="button"
+        className="metadata-header"
+        onClick={handleToggle}
+        aria-expanded={expanded}
+        aria-controls={detailsId}
+      >
+        <span className="metadata-compact">{compactFormat}</span>
+        <span
+          className={`metadata-header__chevron ${expanded ? "metadata-header__chevron--open" : ""}`}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
 
-      {expanded && (
-        <div className="metadata-detailed">
-          {Object.entries(detailedInfo).map(([key, value]) => (
-            <div key={key} className="metadata-item">
-              <strong>{key}:</strong> {value}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      <div
+        id={detailsId}
+        className="metadata-detailed"
+        hidden={!expanded}
+        aria-live="polite"
+      >
+        {Object.entries(detailedInfo).map(([key, value]) => (
+          <div key={key} className="metadata-item">
+            <strong>{key}:</strong> {value}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 };
 
