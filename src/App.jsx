@@ -65,9 +65,9 @@ function App() {
           <div className="header-section">
             <h1 className="app-title">Spektra</h1>
             <p className="app-subtitle">Static Spectrum Analyzer</p>
-            <p className="app-description">
+            {/* <p className="app-description">
               Analyze audio files to verify their frequency content and quality
-            </p>
+            </p> */}
           </div>
 
           <div className="upload-section">

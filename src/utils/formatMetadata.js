@@ -20,12 +20,19 @@ export async function extractAudioMetadata(file) {
     }
 
     // Convert bitrate to kbps and duration to mm:ss
+    const rawSampleRate = metadata.format.sampleRate;
+    const sampleRate = rawSampleRate
+      ? Math.round(rawSampleRate)
+      : null;
+
     return {
       bitrate: metadata.format.bitrate
         ? `${(metadata.format.bitrate / 1000).toFixed(1)} kbps`
         : "Unknown",
-      sampleRate: metadata.format.sampleRate || "Unknown",
-      bitsPerSample: metadata.format.bitsPerSample || "Unknown",
+      sampleRate: sampleRate || "Unknown",
+      bitsPerSample:
+        metadata.format.bitsPerSample ?? metadata.format.bitDepth ?? "Unknown",
+      channels: metadata.format.numberOfChannels ?? metadata.format.channels ?? "Unknown",
       codec: metadata.format.codec || "Unknown",
       duration: metadata.format.duration
         ? formatDuration(metadata.format.duration)

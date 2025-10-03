@@ -3,7 +3,7 @@ import {
   processAudioWithRustFFT,
   testRustConnection,
 } from "../utils/wasmAudioProcessor";
-import { computeSpectogramWithMetrics } from "../utils/audioProcessor"; // JS version
+import { computeSpectogramWithMetrics } from "../utils/deprecated/audioProcessor"; // JS version
 
 const AudioProcessorSelector = ({ file, onSpectrogramGenerated }) => {
   const [processing, setProcessing] = useState(false);
