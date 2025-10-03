@@ -12,7 +12,7 @@ As a passionate audio enthusiast, I've encountered numerous instances where I pu
 
 Now, at this point in my audio hobby, I have to add the caveat that I believe a well-engineered 256kbps audio file is effectively indistinguishable from a 16-bit/48kHz FLAC. Nonetheless, the past experiences of buying the fake FLAC files, or the whole ordeal with Tidal and MQA formats and debunking by GoldenSound, still left me with a lingering distrust of online audio vendors.
 
-Old habits die hard, and even when purchasing from trusted platforms like Qobuz, I usually validate that the files truly contain the claimed high fidelity audio data. Tools like [Spek](https://spek.cc) have been invaluable in this regard, but their unavailability on certain platforms like Linux at times, along with the requirement for needing to have the executable installed on your machine led to cumbersome experiences in my rituals of audio data validations. This made me long for a lightweight, cross-platform analyzer accessible anytime.
+Old habits die hard, and even when purchasing from trusted platforms like Qobuz, I usually validate that the files truly contain the claimed high fidelity audio data. Tools like [Spek](https://spek.cc) have been invaluable in this regard, but the requirement for needing to have the executable installed on your machine led to cumbersome experiences in my rituals of audio data validations. This made me long for a lightweight, cross-platform analyzer accessible anytime.
 
 So naturally, this led to the idea behind Spektra: a lightweight, client-side, static web based audio spectrum analyzer, designed for universal accessibility and ease of use. The idea was to create a trustworthy tool that anyone can use without the hassle of installation or OS limitations.
 
@@ -37,8 +37,8 @@ Check out [Spektra](https://www.seungkilee.com/spektra) or install and run it yo
 1. Clone the repository:
 
    ```
-   git clone https://github.com/seungkilee-cs/Spektra.git
-   cd Spektra
+   git clone https://github.com/seungkilee-cs/spektra.git
+   cd spektra
    ```
 
 2. Install dependencies:
@@ -47,7 +47,7 @@ Check out [Spektra](https://www.seungkilee.com/spektra) or install and run it yo
    npm install
    ```
 
-   - Key dependencies: `fft-js` for FFT computations, `music-metadata-browser` for audio metadata extraction.
+   - Key dependencies: `music-metadata-browser` for audio metadata extraction.
 
 3. Run locally:
 
@@ -74,12 +74,12 @@ Example metadata display:
 
 ## Technologies
 
-- **Frontend**: React.js for static page web app.
-- **Audio Processing**: Web Audio API for decoding audio files.
+- Frontend: React.js for static page web app.
+- Audio Processing: Web Audio API for decoding audio files.
 - Fast Fourier Transform: Custom implementation of FFT in Javascript -> changed to fft-js library -> changed to Rust + WASM custom implementation.
-- **Metadata**: music-metadata-browser for extracting audio tags.
-- **Visualization**: HTML Canvas for efficient pixel rendering.
-- **Build Tools**: Vite for fast development and bundling.
+- Metadata: music-metadata-browser for extracting audio tags.
+- Visualization: HTML Canvas for efficient pixel rendering.
+- Build Tools: Vite for fast development and bundling.
 
 ## Current Iterations
 
@@ -120,4 +120,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ---
 
-Built by [seungkilee-cs](https://github.com/seungkilee-cs). Inspired by [Spek](https://spek.cc) and the need for a lightweight, web-based audio analyzer.
+Built by [seungkilee-cs](https://github.com/seungkilee-cs). Inspired by [Spek](https://spek.cc) and the need for a lightweight, no-install audio analyzer.
