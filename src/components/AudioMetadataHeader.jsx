@@ -20,16 +20,31 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     metadata.codec || "Unknown"
   }, ${metadata.bitrate}, ${metadata.sampleRate} Hz, ${metadata.duration}`;
 
-  const detailedInfo = {
-    "File Name": file.name,
-    "File Size": formatFileSize(file.size),
-    Bitrate: metadata.bitrate,
-    "Sample Rate": `${metadata.sampleRate} Hz`,
-    "Bits Per Sample": metadata.bitsPerSample || "Unknown",
-    Codec: metadata.codec || "Unknown",
-    Duration: metadata.duration,
-    Channels: metadata.channels || "Unknown",
-  };
+  const rows = [
+    [
+      { label: "File Name", value: file.name },
+      { label: "File Size", value: formatFileSize(file.size) },
+      { label: "Bitrate", value: metadata.bitrate },
+      {
+        label: "Sample Rate",
+        value:
+          metadata.sampleRate && metadata.sampleRate !== "Unknown"
+            ? `${metadata.sampleRate} Hz`
+            : "Unknown",
+      },
+    ],
+    [
+      { label: "Bits Per Sample", value: metadata.bitsPerSample || "Unknown" },
+      { label: "Channels", value: metadata.channels || "Unknown" },
+      { label: "Codec", value: metadata.codec || "Unknown" },
+      { label: "Codec Profile", value: metadata.codecProfile || "Unknown" },
+      { label: "Container", value: metadata.container || "Unknown" },
+    ],
+    [
+      { label: "Lossless", value: metadata.lossless || "Unknown" },
+      { label: "Duration", value: metadata.duration },
+    ],
+  ];
 
   return (
     <section
@@ -58,9 +73,13 @@ const AudioMetadataHeader = ({ metadata, file }) => {
         hidden={!expanded}
         aria-live="polite"
       >
-        {Object.entries(detailedInfo).map(([key, value]) => (
-          <div key={key} className="metadata-item">
-            <strong>{key}:</strong> {value}
+        {rows.map((cells, rowIndex) => (
+          <div key={rowIndex} className="metadata-row">
+            {cells.map(({ label, value }) => (
+              <div key={label} className="metadata-item">
+                <strong>{label}:</strong> {value}
+              </div>
+            ))}
           </div>
         ))}
       </div>
