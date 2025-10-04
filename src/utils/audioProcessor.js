@@ -1,5 +1,3 @@
-console.warn(
-  "[Deprecated] `src/utils/audioProcessor.js` has moved to `src/utils/deprecated/audioProcessor.js`."
-);
-
-export * from "./deprecated/audioProcessor";
+// Legacy JavaScript FFT implementation has been removed.
+// This placeholder prevents stale imports without bundling unused code.
+export {};

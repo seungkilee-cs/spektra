@@ -3,11 +3,9 @@ import {
   processAudioWithRustFFT,
   testRustConnection,
 } from "../utils/wasmAudioProcessor";
-import { computeSpectogramWithMetrics } from "../utils/deprecated/audioProcessor"; // JS version
 
 const AudioProcessorSelector = ({ file, onSpectrogramGenerated }) => {
   const [processing, setProcessing] = useState(false);
-  const [processingMethod, setProcessingMethod] = useState("rust"); // 'rust' or 'javascript'
   const [performanceData, setPerformanceData] = useState(null);
 
   const processAudio = async () => {
@@ -17,23 +15,13 @@ const AudioProcessorSelector = ({ file, onSpectrogramGenerated }) => {
     const startTime = performance.now();
 
     try {
-      let spectrogram;
-      let processingTime;
-
-      if (processingMethod === "rust") {
-        console.log("🦀 Processing with Rust+WASM...");
-        spectrogram = await processAudioWithRustFFT(file, 1024, 0.5);
-        processingTime = performance.now() - startTime;
-      } else {
-        console.log("🟡 Processing with JavaScript...");
-        const result = await computeSpectogramWithMetrics(file, 1024, 0.5);
-        spectrogram = result.result;
-        processingTime = result.metrics.totalTime;
-      }
+      console.log("🦀 Processing with Rust+WASM...");
+      const spectrogram = await processAudioWithRustFFT(file, 1024, 0.5);
+      const processingTime = performance.now() - startTime;
 
       // Performance comparison
       setPerformanceData({
-        method: processingMethod,
+        method: "rust",
         time: processingTime,
         fileSize: file.size,
         spectrogramSize: `${spectrogram.length} x ${spectrogram[0].length}`,
@@ -41,7 +29,7 @@ const AudioProcessorSelector = ({ file, onSpectrogramGenerated }) => {
 
       onSpectrogramGenerated(spectrogram);
     } catch (error) {
-      console.error(`❌ ${processingMethod} processing failed:`, error);
+      console.error("❌ Rust processing failed:", error);
       alert(`Processing failed: ${error.message}`);
     } finally {
       setProcessing(false);
@@ -63,27 +51,9 @@ const AudioProcessorSelector = ({ file, onSpectrogramGenerated }) => {
     <div className="audio-processor-controls">
       <h3>🎛️ Audio Processing Engine</h3>
 
-      <div className="method-selector">
-        <label>
-          <input
-            type="radio"
-            value="rust"
-            checked={processingMethod === "rust"}
-            onChange={(e) => setProcessingMethod(e.target.value)}
-          />
-          🦀 Rust+WASM (Fast)
-        </label>
-
-        <label>
-          <input
-            type="radio"
-            value="javascript"
-            checked={processingMethod === "javascript"}
-            onChange={(e) => setProcessingMethod(e.target.value)}
-          />
-          🟡 JavaScript (Slow)
-        </label>
-      </div>
+      <p className="processor-note">
+        🦀 Rust+WASM FFT is always used (legacy JS path removed).
+      </p>
 
       <div className="action-buttons">
         <button
@@ -91,9 +61,7 @@ const AudioProcessorSelector = ({ file, onSpectrogramGenerated }) => {
           disabled={processing || !file}
           className="process-btn"
         >
-          {processing
-            ? "🔄 Processing..."
-            : `🚀 Process with ${processingMethod}`}
+          {processing ? "🔄 Processing..." : "🚀 Process with Rust"}
         </button>
 
         <button onClick={runTest} className="test-btn">

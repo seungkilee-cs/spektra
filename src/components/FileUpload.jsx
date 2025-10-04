@@ -10,7 +10,6 @@ const FileUpload = ({ onFileSelect }) => {
   const supportedFormats = [
     { type: "audio/mpeg", extension: "MP3", color: "#4285f4" },
     { type: "audio/flac", extension: "FLAC", color: "#0f9d58" },
-    { type: "audio/x-m4a", extension: "M4A", color: "#ff6900" },
     { type: "audio/wav", extension: "WAV", color: "#9c27b0" },
     { type: "audio/ogg", extension: "OGG", color: "#f44336" },
     { type: "audio/mp4", extension: "AAC", color: "#ff9800" },

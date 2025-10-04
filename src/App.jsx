@@ -21,11 +21,21 @@ function App() {
       const supportedTypes = [
         "audio/mpeg",
         "audio/mp4",
-        "audio/x-m4a",
         "audio/flac",
         "audio/wav",
         "audio/ogg",
+        "audio/x-aiff",
+        "audio/webm",
+        "audio/opus",
       ];
+
+      if (selectedFile.type === "audio/x-m4a") {
+        debugError("Unsupported ALAC/M4A file")
+        alert(
+          "Apple Lossless (ALAC/M4A) files are not currently supported. Please upload MP3, FLAC, WAV, OGG, AIFF, WebM, or Opus."
+        );
+        return;
+      }
 
       if (!supportedTypes.includes(selectedFile.type)) {
         debugError("Unsupported file type:", selectedFile.type);
