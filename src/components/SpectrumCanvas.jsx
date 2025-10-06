@@ -110,7 +110,10 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     async (file) => {
       if (isProcessing) return;
 
+      const pipelineLabel = "🎛 Upload→Spectrogram Pipeline";
+      const pipelineStart = performance.now();
       try {
+        console.time(pipelineLabel);
         console.log("=== STARTING WASM SPECTRUM PROCESSING ===");
         setIsProcessing(true);
         setIsProcessed(false);
@@ -199,6 +202,11 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         setIsProcessed(false);
       } finally {
         setIsProcessing(false);
+        console.timeEnd(pipelineLabel);
+        const pipelineDuration = performance.now() - pipelineStart;
+        console.log(
+          `${pipelineLabel} complete in ${pipelineDuration.toFixed(2)}ms`,
+        );
       }
     },
     [getOrCreateAudioContext, isProcessing],

@@ -83,26 +83,12 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     return "Unknown";
   })();
 
-  const qualityDisplay = (() => {
-    if (losslessDisplay) {
-      return losslessDisplay;
-    }
-    if (metadata.lossless === "No (lossy)") {
-      return metadata.lossless;
-    }
-    if (profileLabel) {
-      return `Lossy (${profileLabel})`;
-    }
-    return metadata.lossless || "Unknown";
-  })();
-
   const summaryMetaItems = [
     formatDisplay,
     metadata.bitrate,
     sampleRateLabel,
     formatFileSize(file.size),
     metadata.duration,
-    qualityDisplay,
   ].filter(Boolean);
 
   const detailItems = [
@@ -114,7 +100,6 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     { label: "Sample Rate", value: sampleRateLabel },
     { label: "Bits Per Sample", value: metadata.bitsPerSample || "Unknown" },
     { label: "Channels", value: metadata.channels || "Unknown" },
-    { label: "Quality", value: qualityDisplay },
   ];
 
   const isLossless = losslessDisplay === "Yes (lossless)" || metadata.lossless === "Yes (lossless)";
