@@ -1,7 +1,17 @@
 import React, { useRef, useEffect, useState, useCallback, useId } from "react";
 import { processAudioWithRustFFT } from "../utils/wasmAudioProcessor";
-import { debugLog, debugError } from "../utils/debug";
+import { debugError } from "../utils/debug";
 import "../styles/SpectrumCanvas.css";
+
+const scheduleIdleCallback =
+  typeof window !== "undefined" && typeof window.requestIdleCallback === "function"
+    ? window.requestIdleCallback.bind(window)
+    : (cb) => setTimeout(() => cb({ didTimeout: true, timeRemaining: () => 0 }), 16);
+
+const cancelIdle =
+  typeof window !== "undefined" && typeof window.cancelIdleCallback === "function"
+    ? window.cancelIdleCallback.bind(window)
+    : clearTimeout;
 
 const SpectrumCanvas = ({ fileUploaded }) => {
   const canvasRef = useRef(null);
@@ -13,6 +23,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   const [isProcessed, setIsProcessed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const canvasDescriptionId = useId();
+  const pendingRenderRef = useRef({ frame: null, idle: null });
 
   const getOrCreateAudioContext = useCallback(async () => {
     if (typeof window === "undefined") return null;
@@ -84,112 +95,129 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     };
   }, [updateCanvasSize]);
 
+  const cancelPendingRender = useCallback(() => {
+    const pending = pendingRenderRef.current;
+    if (pending.frame) {
+      cancelAnimationFrame(pending.frame);
+    }
+    if (pending.idle) {
+      cancelIdle(pending.idle);
+    }
+    pendingRenderRef.current = { frame: null, idle: null };
+  }, []);
+
+  const processAudioFile = useCallback(
+    async (file) => {
+      if (isProcessing) return;
+
+      try {
+        console.log("=== STARTING WASM SPECTRUM PROCESSING ===");
+        setIsProcessing(true);
+        setIsProcessed(false);
+
+        const wasmStart = performance.now();
+        const spectrogramData = await processAudioWithRustFFT(file, 1024, 0.5);
+        const wasmTime = performance.now() - wasmStart;
+
+        // Get audio metadata for proper time/frequency scaling
+        const audioContext = await getOrCreateAudioContext();
+        if (!audioContext) {
+          throw new Error("AudioContext could not be initialised");
+        }
+        const arrayBuffer = await file.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        audioMetadataRef.current = {
+          duration: audioBuffer.duration,
+          sampleRate: audioBuffer.sampleRate,
+          nyquistFreq: audioBuffer.sampleRate / 2,
+        };
+
+        console.log(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
+        if (spectrogramData.length > 0) {
+          console.log(
+            `📊 Generated spectrogram: ${spectrogramData.length} x ${spectrogramData[0].length}`,
+          );
+        }
+
+        // Process and cache the data
+        let displayData = spectrogramData.length ? spectrogramData : [];
+
+        // Downsample if needed
+        const maxDisplayFrames = 2000;
+        const maxDisplayFreqs = 256;
+
+        if (spectrogramData.length > maxDisplayFrames) {
+          console.log(
+            `⬇️ Downsampling time: ${spectrogramData.length} → ${maxDisplayFrames}`,
+          );
+          const timeStep = Math.floor(
+            spectrogramData.length / maxDisplayFrames,
+          );
+          displayData = spectrogramData.filter(
+            (_, index) => index % timeStep === 0,
+          );
+        }
+
+        if (displayData.length && displayData[0].length > maxDisplayFreqs) {
+          console.log(
+            `⬇️ Downsampling frequency: ${displayData[0].length} → ${maxDisplayFreqs}`,
+          );
+          const freqStep = Math.floor(displayData[0].length / maxDisplayFreqs);
+          displayData = displayData.map((frame) =>
+            frame.filter((_, index) => index % freqStep === 0),
+          );
+        }
+
+        if (!displayData.length || !displayData[0]?.length) {
+          spectrogramDataRef.current = [];
+          setIsProcessed(true);
+          console.log("✅ WASM audio processing completed (no FFT frames)");
+          return;
+        }
+
+        // Convert to dB and normalize
+        const dbData = displayData.map((frame) =>
+          frame.map((magnitude) => {
+            const db = magnitude > 0 ? 20 * Math.log10(magnitude) : -120;
+            return Math.max(-120, db);
+          }),
+        );
+
+        const minDb = -120;
+        const maxDb = 0;
+        const normalizedData = dbData.map((frame) =>
+          frame.map((db) => (db - minDb) / (maxDb - minDb)),
+        );
+
+        spectrogramDataRef.current = normalizedData;
+        setIsProcessed(true);
+        console.log("✅ WASM audio processing completed");
+      } catch (error) {
+        console.error("❌ Error processing audio:", error);
+        spectrogramDataRef.current = null;
+        setIsProcessed(false);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [getOrCreateAudioContext, isProcessing],
+  );
+
   // File processing trigger
   useEffect(() => {
     if (fileUploaded && !isProcessing && !isProcessed) {
       processAudioFile(fileUploaded);
     }
-  }, [fileUploaded]);
-
-  const processAudioFile = async (file) => {
-    if (isProcessing) return;
-
-    try {
-      console.log("=== STARTING WASM SPECTRUM PROCESSING ===");
-      setIsProcessing(true);
-      setIsProcessed(false);
-
-      const wasmStart = performance.now();
-      const spectrogramData = await processAudioWithRustFFT(file, 1024, 0.5);
-      const wasmTime = performance.now() - wasmStart;
-
-      // Get audio metadata for proper time/frequency scaling
-      const audioContext = await getOrCreateAudioContext();
-      if (!audioContext) {
-        throw new Error("AudioContext could not be initialised");
-      }
-      const arrayBuffer = await file.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-      audioMetadataRef.current = {
-        duration: audioBuffer.duration,
-        sampleRate: audioBuffer.sampleRate,
-        nyquistFreq: audioBuffer.sampleRate / 2,
-      };
-
-      console.log(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
-      if (spectrogramData.length > 0) {
-        console.log(
-          `📊 Generated spectrogram: ${spectrogramData.length} x ${spectrogramData[0].length}`,
-        );
-      }
-
-      // Process and cache the data
-      let displayData = spectrogramData.length ? spectrogramData : [];
-
-      // Downsample if needed
-      const maxDisplayFrames = 2000;
-      const maxDisplayFreqs = 256;
-
-      if (spectrogramData.length > maxDisplayFrames) {
-        console.log(
-          `⬇️ Downsampling time: ${spectrogramData.length} → ${maxDisplayFrames}`,
-        );
-        const timeStep = Math.floor(spectrogramData.length / maxDisplayFrames);
-        displayData = spectrogramData.filter(
-          (_, index) => index % timeStep === 0,
-        );
-      }
-
-      if (displayData.length && displayData[0].length > maxDisplayFreqs) {
-        console.log(
-          `⬇️ Downsampling frequency: ${displayData[0].length} → ${maxDisplayFreqs}`,
-        );
-        const freqStep = Math.floor(displayData[0].length / maxDisplayFreqs);
-        displayData = displayData.map((frame) =>
-          frame.filter((_, index) => index % freqStep === 0),
-        );
-      }
-
-      if (!displayData.length || !displayData[0]?.length) {
-        spectrogramDataRef.current = [];
-        setIsProcessed(true);
-        console.log("✅ WASM audio processing completed (no FFT frames)");
-        return;
-      }
-
-      // Convert to dB and normalize
-      const dbData = displayData.map((frame) =>
-        frame.map((magnitude) => {
-          const db = magnitude > 0 ? 20 * Math.log10(magnitude) : -120;
-          return Math.max(-120, db);
-        }),
-      );
-
-      const minDb = -120;
-      const maxDb = 0;
-      const normalizedData = dbData.map((frame) =>
-        frame.map((db) => (db - minDb) / (maxDb - minDb)),
-      );
-
-      spectrogramDataRef.current = normalizedData;
-      setIsProcessed(true);
-      console.log("✅ WASM audio processing completed");
-    } catch (error) {
-      console.error("❌ Error processing audio:", error);
-      spectrogramDataRef.current = null;
-      setIsProcessed(false);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  }, [fileUploaded, isProcessing, isProcessed, processAudioFile]);
 
   const renderSpectrogramFromData = useCallback(
     (normalizedData) => {
       const canvas = canvasRef.current;
       if (!canvas || !normalizedData || !normalizedData.length) return;
 
-      console.log("=== RENDERING SPECTROGRAM ===");
+      cancelPendingRender();
+      console.log("=== RENDERING SPECTROGRAM (progressive) ===");
       const ctx = canvas.getContext("2d");
 
       const leftMargin = 70;
@@ -207,6 +235,8 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       const freqBins = normalizedData[0].length;
       const binWidth = plotWidth / timeBins;
       const binHeight = plotHeight / freqBins;
+
+      const chunkSize = Math.max(32, Math.floor(timeBins / 40));
 
       const spekColorMap = (normalizedMagnitude) => {
         const t = Math.max(0, Math.min(1, normalizedMagnitude));
@@ -247,112 +277,131 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         return { r, g, b };
       };
 
-      normalizedData.forEach((frame, timeIndex) => {
-        frame.forEach((magnitude, freqIndex) => {
-          const color = spekColorMap(magnitude);
+      const drawChunk = (startIndex) => {
+        const endIndex = Math.min(startIndex + chunkSize, timeBins);
 
-          const x = leftMargin + timeIndex * binWidth;
-          const y = topMargin + (freqBins - freqIndex - 1) * binHeight;
+        for (let timeIndex = startIndex; timeIndex < endIndex; timeIndex += 1) {
+          const frame = normalizedData[timeIndex];
+          for (let freqIndex = 0; freqIndex < freqBins; freqIndex += 1) {
+            const magnitude = frame[freqIndex];
+            const color = spekColorMap(magnitude);
+            const x = leftMargin + timeIndex * binWidth;
+            const y = topMargin + (freqBins - freqIndex - 1) * binHeight;
 
-          ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
-          ctx.fillRect(x, y, Math.ceil(binWidth), Math.ceil(binHeight));
-        });
-      });
-
-      const fontSize = Math.max(10, Math.min(12, canvasSize.width / 80));
-      ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
-      ctx.fillStyle = "#94a3b8";
-
-      const duration = audioMetadataRef.current?.duration || 240;
-      const maxFreq = audioMetadataRef.current?.nyquistFreq || 22050;
-
-      ctx.textAlign = "center";
-      const timeSteps = Math.min(10, Math.floor(plotWidth / 80));
-      for (let i = 0; i <= timeSteps; i++) {
-        const x = leftMargin + (i * plotWidth) / timeSteps;
-        const timeValue = (i * duration) / timeSteps;
-        const minutes = Math.floor(timeValue / 60);
-        const seconds = Math.floor(timeValue % 60);
-        const timeLabel = `${minutes}:${seconds.toString().padStart(2, "0")}`;
-
-        ctx.fillText(timeLabel, x, canvas.height - bottomMargin / 2);
-
-        if (i > 0 && i < timeSteps) {
-          ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
-          ctx.lineWidth = 1;
-          ctx.setLineDash([2, 4]);
-          ctx.beginPath();
-          ctx.moveTo(x, topMargin);
-          ctx.lineTo(x, canvas.height - bottomMargin);
-          ctx.stroke();
+            ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+            ctx.fillRect(x, y, Math.ceil(binWidth), Math.ceil(binHeight));
+          }
         }
-      }
 
-      ctx.textAlign = "right";
-      const freqSteps = Math.min(8, Math.floor(plotHeight / 40));
-      for (let i = 0; i <= freqSteps; i++) {
-        const y = canvas.height - bottomMargin - (i * plotHeight) / freqSteps;
-        const freqValue = (i * maxFreq) / freqSteps;
-        const freqLabel =
-          freqValue >= 1000
-            ? `${(freqValue / 1000).toFixed(1)}k`
-            : `${Math.floor(freqValue)}`;
+        if (endIndex < timeBins) {
+          const scheduleNext = () => {
+            pendingRenderRef.current.frame = requestAnimationFrame(() => {
+              drawChunk(endIndex);
+            });
+          };
 
-        ctx.fillText(freqLabel, leftMargin - 10, y + fontSize / 2);
+          pendingRenderRef.current.idle = scheduleIdleCallback(() => {
+            scheduleNext();
+          }, { timeout: 32 });
+        } else {
+          const fontSize = Math.max(10, Math.min(12, canvasSize.width / 80));
+          ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
+          ctx.fillStyle = "#94a3b8";
 
-        if (i > 0 && i < freqSteps) {
-          ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
-          ctx.lineWidth = 1;
-          ctx.setLineDash([2, 4]);
-          ctx.beginPath();
-          ctx.moveTo(leftMargin, y);
-          ctx.lineTo(leftMargin + plotWidth, y);
-          ctx.stroke();
+          const duration = audioMetadataRef.current?.duration || 240;
+          const maxFreq = audioMetadataRef.current?.nyquistFreq || 22050;
+
+          ctx.textAlign = "center";
+          const timeSteps = Math.min(10, Math.floor(plotWidth / 80));
+          for (let i = 0; i <= timeSteps; i += 1) {
+            const x = leftMargin + (i * plotWidth) / timeSteps;
+            const timeValue = (i * duration) / timeSteps;
+            const minutes = Math.floor(timeValue / 60);
+            const seconds = Math.floor(timeValue % 60);
+            const timeLabel = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+            ctx.fillText(timeLabel, x, canvas.height - bottomMargin / 2);
+
+            if (i > 0 && i < timeSteps) {
+              ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
+              ctx.lineWidth = 1;
+              ctx.setLineDash([2, 4]);
+              ctx.beginPath();
+              ctx.moveTo(x, topMargin);
+              ctx.lineTo(x, canvas.height - bottomMargin);
+              ctx.stroke();
+            }
+          }
+
+          ctx.textAlign = "right";
+          const freqSteps = Math.min(8, Math.floor(plotHeight / 40));
+          for (let i = 0; i <= freqSteps; i += 1) {
+            const y = canvas.height - bottomMargin - (i * plotHeight) / freqSteps;
+            const freqValue = (i * maxFreq) / freqSteps;
+            const freqLabel =
+              freqValue >= 1000
+                ? `${(freqValue / 1000).toFixed(1)}k`
+                : `${Math.floor(freqValue)}`;
+
+            ctx.fillText(freqLabel, leftMargin - 10, y + fontSize / 2);
+
+            if (i > 0 && i < freqSteps) {
+              ctx.strokeStyle = "rgba(71, 85, 105, 0.2)";
+              ctx.lineWidth = 1;
+              ctx.setLineDash([2, 4]);
+              ctx.beginPath();
+              ctx.moveTo(leftMargin, y);
+              ctx.lineTo(leftMargin + plotWidth, y);
+              ctx.stroke();
+            }
+          }
+
+          ctx.textAlign = "left";
+          const dbSteps = 6;
+          const dbRange = 120;
+          for (let i = 0; i <= dbSteps; i += 1) {
+            const y = topMargin + (i * plotHeight) / dbSteps;
+            const dbValue = -(dbRange * (dbSteps - i)) / dbSteps;
+            const dbLabel = `${dbValue}dB`;
+
+            ctx.fillText(dbLabel, leftMargin + plotWidth + 10, y + fontSize / 2);
+
+            if (i > 0 && i < dbSteps) {
+              ctx.strokeStyle = "rgba(71, 85, 105, 0.1)";
+              ctx.lineWidth = 1;
+              ctx.setLineDash([1, 3]);
+              ctx.beginPath();
+              ctx.moveTo(leftMargin, y);
+              ctx.lineTo(leftMargin + plotWidth, y);
+              ctx.stroke();
+            }
+          }
+
+          ctx.setLineDash([]);
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#e2e8f0";
+          ctx.font = `${fontSize + 1}px 'JetBrains Mono', monospace`;
+          ctx.fillText("Time", canvas.width / 2, canvas.height - 8);
+
+          ctx.save();
+          ctx.translate(20, canvas.height / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText("Frequency (Hz)", 0, 0);
+          ctx.restore();
+
+          ctx.save();
+          ctx.translate(canvas.width - 20, canvas.height / 2);
+          ctx.rotate(Math.PI / 2);
+          ctx.fillText("Amplitude (dB)", 0, 0);
+          ctx.restore();
+
+          console.log("✅ Spectrogram rendering completed (progressive)");
         }
-      }
+      };
 
-      ctx.textAlign = "left";
-      const dbSteps = 6;
-      const dbRange = 120;
-      for (let i = 0; i <= dbSteps; i++) {
-        const y = topMargin + (i * plotHeight) / dbSteps;
-        const dbValue = -(dbRange * (dbSteps - i)) / dbSteps;
-        const dbLabel = `${dbValue}dB`;
-
-        ctx.fillText(dbLabel, leftMargin + plotWidth + 10, y + fontSize / 2);
-
-        if (i > 0 && i < dbSteps) {
-          ctx.strokeStyle = "rgba(71, 85, 105, 0.1)";
-          ctx.lineWidth = 1;
-          ctx.setLineDash([1, 3]);
-          ctx.beginPath();
-          ctx.moveTo(leftMargin, y);
-          ctx.lineTo(leftMargin + plotWidth, y);
-          ctx.stroke();
-        }
-      }
-
-      ctx.setLineDash([]);
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#e2e8f0";
-      ctx.font = `${fontSize + 1}px 'JetBrains Mono', monospace`;
-      ctx.fillText("Time", canvas.width / 2, canvas.height - 8);
-
-      ctx.save();
-      ctx.translate(20, canvas.height / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText("Frequency (Hz)", 0, 0);
-      ctx.restore();
-
-      ctx.save();
-      ctx.translate(canvas.width - 20, canvas.height / 2);
-      ctx.rotate(Math.PI / 2);
-      ctx.fillText("Amplitude (dB)", 0, 0);
-      ctx.restore();
-
-      console.log("✅ Spectrogram rendering completed");
+      pendingRenderRef.current.frame = requestAnimationFrame(() => drawChunk(0));
     },
-    [canvasSize],
+    [audioMetadataRef, cancelPendingRender, canvasSize],
   );
 
   useEffect(() => {
@@ -364,21 +413,23 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   // Reset cached data when file changes
   useEffect(() => {
     if (!fileUploaded) {
+      cancelPendingRender();
       spectrogramDataRef.current = null;
       audioMetadataRef.current = null;
       setIsProcessed(false);
       setIsProcessing(false);
     }
-  }, [fileUploaded]);
+  }, [cancelPendingRender, fileUploaded]);
 
   useEffect(() => {
     return () => {
+      cancelPendingRender();
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
         audioContextRef.current = null;
       }
     };
-  }, []);
+  }, [cancelPendingRender]);
 
   // Placeholder rendering
   useEffect(() => {

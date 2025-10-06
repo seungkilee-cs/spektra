@@ -1,3 +1,5 @@
+/* eslint-env jest */
+/* global describe, it, expect */
 describe("Audio Processor Tests (deprecated JS pipeline)", () => {
   // Test case for Hann window generation
   describe.skip("generateHannWindow()", () => {

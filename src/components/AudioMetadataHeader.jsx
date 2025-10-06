@@ -102,7 +102,8 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     sampleRateLabel,
     formatFileSize(file.size),
     metadata.duration,
-  ];
+    qualityDisplay,
+  ].filter(Boolean);
 
   const detailItems = [
     { label: "File Name", value: file.name },
@@ -113,6 +114,7 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     { label: "Sample Rate", value: sampleRateLabel },
     { label: "Bits Per Sample", value: metadata.bitsPerSample || "Unknown" },
     { label: "Channels", value: metadata.channels || "Unknown" },
+    { label: "Quality", value: qualityDisplay },
   ];
 
   const isLossless = losslessDisplay === "Yes (lossless)" || metadata.lossless === "Yes (lossless)";
