@@ -48,13 +48,12 @@ export async function processAudioWithRustFFT(
     // Create Rust processor and compute spectrogram
     console.time("🦀 Rust FFT Computation");
     const processor = new WasmSpectrogramProcessor(fftSize);
-    const spectrogramFlat = processor.compute_spectrogram(audioData, overlap);
+    const batch = processor.process_windows(audioData, overlap, null, null);
     console.timeEnd("🦀 Rust FFT Computation");
 
-    // Reshape data back to 2D array
-    const numWindows =
-      Math.floor((audioData.length - fftSize) / (fftSize * (1 - overlap))) + 1;
-    const freqBins = fftSize / 2;
+    const spectrogramFlat = batch.data;
+    const numWindows = batch.num_windows;
+    const freqBins = batch.freq_bins;
     const spectrogram = [];
 
     for (let i = 0; i < numWindows; i++) {
