@@ -24,6 +24,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const canvasDescriptionId = useId();
   const pendingRenderRef = useRef({ frame: null, idle: null });
+  const hasRenderedInitialRef = useRef(false);
 
   const getOrCreateAudioContext = useCallback(async () => {
     if (typeof window === "undefined") return null;
@@ -194,6 +195,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         );
 
         spectrogramDataRef.current = normalizedData;
+        hasRenderedInitialRef.current = false;
         setIsProcessed(true);
         console.log("✅ WASM audio processing completed");
       } catch (error) {
@@ -220,12 +222,16 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   }, [fileUploaded, isProcessing, isProcessed, processAudioFile]);
 
   const renderSpectrogramFromData = useCallback(
-    (normalizedData) => {
+    (normalizedData, { progressive = true } = {}) => {
       const canvas = canvasRef.current;
       if (!canvas || !normalizedData || !normalizedData.length) return;
 
       cancelPendingRender();
-      console.log("=== RENDERING SPECTROGRAM (progressive) ===");
+      const progressiveDraw = progressive;
+
+      if (progressiveDraw) {
+        console.log("=== RENDERING SPECTROGRAM (progressive) ===");
+      }
       const ctx = canvas.getContext("2d");
 
       const leftMargin = 70;
@@ -244,7 +250,9 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       const binWidth = plotWidth / timeBins;
       const binHeight = plotHeight / freqBins;
 
-      const chunkSize = Math.max(32, Math.floor(timeBins / 40));
+      const chunkSize = progressiveDraw
+        ? Math.max(32, Math.floor(timeBins / 40))
+        : timeBins;
 
       const spekColorMap = (normalizedMagnitude) => {
         const t = Math.max(0, Math.min(1, normalizedMagnitude));
@@ -301,7 +309,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           }
         }
 
-        if (endIndex < timeBins) {
+        if (progressiveDraw && endIndex < timeBins) {
           const scheduleNext = () => {
             pendingRenderRef.current.frame = requestAnimationFrame(() => {
               drawChunk(endIndex);
@@ -403,18 +411,33 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           ctx.fillText("Amplitude (dB)", 0, 0);
           ctx.restore();
 
-          console.log("✅ Spectrogram rendering completed (progressive)");
+          console.log(
+            progressiveDraw
+              ? "✅ Spectrogram rendering completed (progressive)"
+              : "✅ Spectrogram rendering completed",
+          );
         }
       };
 
-      pendingRenderRef.current.frame = requestAnimationFrame(() => drawChunk(0));
+      if (progressiveDraw) {
+        pendingRenderRef.current.frame = requestAnimationFrame(() => drawChunk(0));
+      } else {
+        drawChunk(0);
+      }
     },
     [audioMetadataRef, cancelPendingRender, canvasSize],
   );
 
   useEffect(() => {
-    if (spectrogramDataRef.current && isProcessed) {
-      renderSpectrogramFromData(spectrogramDataRef.current);
+    if (spectrogramDataRef.current && isProcessed && !hasRenderedInitialRef.current) {
+      renderSpectrogramFromData(spectrogramDataRef.current, { progressive: true });
+      hasRenderedInitialRef.current = true;
+    }
+  }, [isProcessed, renderSpectrogramFromData]);
+
+  useEffect(() => {
+    if (spectrogramDataRef.current && isProcessed && hasRenderedInitialRef.current) {
+      renderSpectrogramFromData(spectrogramDataRef.current, { progressive: false });
     }
   }, [canvasSize, isProcessed, renderSpectrogramFromData]);
 
@@ -426,6 +449,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       audioMetadataRef.current = null;
       setIsProcessed(false);
       setIsProcessing(false);
+      hasRenderedInitialRef.current = false;
     }
   }, [cancelPendingRender, fileUploaded]);
 

@@ -156,9 +156,9 @@ export function multiply_array(numbers, factor) {
     return v2;
 }
 
-const SpectrogramBatchFinalization = (typeof globalThis.FinalizationRegistry === 'undefined')
+const SpectrogramBatchFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new globalThis.FinalizationRegistry(ptr => wasm.__wbg_spectrogrambatch_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_spectrogrambatch_free(ptr >>> 0, 1));
 
 export class SpectrogramBatch {
 
@@ -206,9 +206,9 @@ export class SpectrogramBatch {
     }
 }
 
-const WasmSpectrogramProcessorFinalization = (typeof globalThis.FinalizationRegistry === 'undefined')
+const WasmSpectrogramProcessorFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new globalThis.FinalizationRegistry(ptr => wasm.__wbg_wasmspectrogramprocessor_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmspectrogramprocessor_free(ptr >>> 0, 1));
 
 export class WasmSpectrogramProcessor {
 
@@ -352,7 +352,7 @@ function __wbg_get_imports() {
     return imports;
 }
 
-function __wbg_init_memory() {
+function __wbg_init_memory(imports, memory) {
 
 }
 

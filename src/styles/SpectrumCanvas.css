@@ -5,7 +5,7 @@
   padding: clamp(16px, 3vw, 26px);
   position: relative;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   gap: clamp(14px, 3vw, 24px);
   background: rgba(15, 23, 42, 0.35);
   border-radius: var(--card-radius);
@@ -14,6 +14,52 @@
   box-shadow:
     0 12px 28px rgba(2, 6, 23, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.renderer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: "JetBrains Mono", monospace;
+  color: #cbd5f5;
+  font-size: clamp(12px, 2vw, 14px);
+}
+
+.renderer-controls label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.renderer-controls select {
+  appearance: none;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 6px 26px 6px 10px;
+  color: #e2e8f0;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.renderer-controls select:focus {
+  outline: none;
+  border-color: rgba(248, 250, 252, 0.6);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
+}
+
+.renderer-controls select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.renderer-controls__hint {
+  font-size: clamp(11px, 1.8vw, 12px);
+  color: #f97316;
 }
 
 .spectrum-canvas {
