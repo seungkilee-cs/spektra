@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useId } from "react";
 import { processAudioWithRustFFT } from "../utils/wasmAudioProcessor";
+import { ensureAudioContext } from "../utils/audioContextManager";
 import { debugError } from "../utils/debug";
 import "../styles/SpectrumCanvas.css";
 
@@ -29,23 +30,14 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   const getOrCreateAudioContext = useCallback(async () => {
     if (typeof window === "undefined") return null;
 
-    if (!audioContextRef.current || audioContextRef.current.state === "closed") {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) {
-        throw new Error("Web Audio API not supported in this browser");
-      }
-      audioContextRef.current = new AudioContextClass();
+    try {
+      const ctx = await ensureAudioContext();
+      audioContextRef.current = ctx;
+      return ctx;
+    } catch (resumeError) {
+      debugError("Failed to ensure AudioContext", resumeError);
+      return null;
     }
-
-    if (audioContextRef.current.state === "suspended") {
-      try {
-        await audioContextRef.current.resume();
-      } catch (resumeError) {
-        debugError("Failed to resume AudioContext", resumeError);
-      }
-    }
-
-    return audioContextRef.current;
   }, []);
 
   // Debounced resize handler
@@ -119,15 +111,21 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         setIsProcessing(true);
         setIsProcessed(false);
 
-        const wasmStart = performance.now();
-        const spectrogramData = await processAudioWithRustFFT(file, 1024, 0.5);
-        const wasmTime = performance.now() - wasmStart;
-
-        // Get audio metadata for proper time/frequency scaling
         const audioContext = await getOrCreateAudioContext();
         if (!audioContext) {
           throw new Error("AudioContext could not be initialised");
         }
+
+        const wasmStart = performance.now();
+        const spectrogramData = await processAudioWithRustFFT(
+          file,
+          1024,
+          0.5,
+          audioContext,
+        );
+        const wasmTime = performance.now() - wasmStart;
+
+        // Get audio metadata for proper time/frequency scaling
         const arrayBuffer = await file.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
@@ -456,10 +454,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
   useEffect(() => {
     return () => {
       cancelPendingRender();
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
-        audioContextRef.current = null;
-      }
+      audioContextRef.current = null;
     };
   }, [cancelPendingRender]);
 

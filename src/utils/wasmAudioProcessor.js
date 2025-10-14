@@ -5,6 +5,7 @@ import {
   profileMark,
   profileMeasure,
 } from "./profiler";
+import { ensureAudioContext } from "./audioContextManager";
 
 let wasmInitialized = false;
 let wasmModule = null;
@@ -135,15 +136,21 @@ export async function processAudioWithRustFFT(
   audioFile,
   fftSize = 1024,
   overlap = 0.5,
+  sharedAudioContext = null,
 ) {
   profileMark("pipeline:start");
   console.time("🦀 Total Rust Audio Processing");
 
-  let audioContext;
+  let audioContext = sharedAudioContext;
   try {
     // Load audio file
     profileMark("decode:start");
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioContext) {
+      audioContext = await ensureAudioContext();
+    }
+    if (!audioContext) {
+      throw new Error("AudioContext could not be initialised");
+    }
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     profileMark("decode:end");
@@ -220,10 +227,6 @@ export async function processAudioWithRustFFT(
     console.error("❌ Rust audio processing failed:", error);
     throw error;
   } finally {
-    if (audioContext) {
-      audioContext.close().catch(() => {});
-    }
-
     if (isProfilingEnabled()) {
       profileMark("pipeline:end");
       profileMeasure("pipeline", "pipeline:start", "pipeline:end");
