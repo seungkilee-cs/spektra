@@ -55,6 +55,9 @@ dist-ssr
 
 # manual exclude
 _legacy/*
+exclude/*
+docs/exclude
+docs/exclude/*
 
 
 # Rust build artifacts

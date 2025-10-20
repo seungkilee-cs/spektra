@@ -2,9 +2,11 @@
 
 From my Javascript implementation to using `fft-js` library, I've been able to keep the code from crashing to finish executing in 13 seconds. But this was still too long. So I decided to write the logic for fft in rust and use WASM to call it from Javascript. Here are the difference in performances.
 
+![JS vs Rust vs Optimized Code Performance](./performance/js_rust_opt_cmp_1.png)
+
 ## Methodology
 
-timer logging
+timer logging, testing 
 
 ## Exact Performance Metrics
 
