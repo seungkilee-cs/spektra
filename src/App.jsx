@@ -15,12 +15,16 @@ function App() {
     try {
       setIsProcessing(true);
       debugLog("=== FILE SELECTION START ===");
-      setFile(selectedFile);
+      setFile(null);
+      setMetadata(null);
 
       // Define supported audio types (expandable)
       const supportedTypes = [
         "audio/mpeg",
         "audio/mp4",
+        "audio/m4a",
+        "audio/x-m4a",
+        "audio/aac",
         "audio/flac",
         "audio/wav",
         "audio/ogg",
@@ -29,15 +33,7 @@ function App() {
         "audio/opus",
       ];
 
-      if (selectedFile.type === "audio/x-m4a") {
-        debugError("Unsupported ALAC/M4A file")
-        alert(
-          "Apple Lossless (ALAC/M4A) files are not currently supported. Please upload MP3, FLAC, WAV, OGG, AIFF, WebM, or Opus."
-        );
-        return;
-      }
-
-      if (!supportedTypes.includes(selectedFile.type)) {
+      if (selectedFile.type && !supportedTypes.includes(selectedFile.type)) {
         debugError("Unsupported file type:", selectedFile.type);
         alert("Please select a supported audio file format.");
         return;
@@ -45,6 +41,19 @@ function App() {
 
       const metadata = await extractAudioMetadata(selectedFile);
       debugLog("Extracted metadata:", metadata);
+
+      const codecLower = (metadata?.codec || "").toLowerCase();
+      const containerLower = (metadata?.container || "").toLowerCase();
+
+      if (codecLower.includes("alac") || containerLower.includes("alac")) {
+        debugError("Unsupported ALAC codec detected");
+        alert(
+          "Apple Lossless (ALAC) files are not currently supported. Please upload MP3, AAC/M4A, FLAC, WAV, OGG, AIFF, WebM, or Opus."
+        );
+        return;
+      }
+
+      setFile(selectedFile);
       setMetadata(metadata);
       debugLog("=== FILE SELECTION END ===");
     } catch (error) {
