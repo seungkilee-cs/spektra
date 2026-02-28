@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useId } from "react";
 import { processAudioWithRustFFT } from "../utils/wasmAudioProcessor";
 import { ensureAudioContext } from "../utils/audioContextManager";
-import { debugError } from "../utils/debug";
+import { debugLog, debugError } from "../utils/debug";
 import "../styles/SpectrumCanvas.css";
 
 const scheduleIdleCallback =
@@ -103,11 +103,8 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     async (file) => {
       if (isProcessing) return;
 
-      const pipelineLabel = "🎛 Upload→Spectrogram Pipeline";
-      const pipelineStart = performance.now();
       try {
-        console.time(pipelineLabel);
-        console.log("=== STARTING WASM SPECTRUM PROCESSING ===");
+        debugLog("=== STARTING WASM SPECTRUM PROCESSING ===");
         setIsProcessing(true);
         setIsProcessed(false);
 
@@ -117,7 +114,9 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         }
 
         const wasmStart = performance.now();
-        const spectrogramData = await processAudioWithRustFFT(
+        // processAudioWithRustFFT returns { spectrogram, duration, sampleRate }
+        // so we don't need to decode the audio a second time just for metadata
+        const { spectrogram: spectrogramData, duration, sampleRate } = await processAudioWithRustFFT(
           file,
           1024,
           0.5,
@@ -125,19 +124,15 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         );
         const wasmTime = performance.now() - wasmStart;
 
-        // Get audio metadata for proper time/frequency scaling
-        const arrayBuffer = await file.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
         audioMetadataRef.current = {
-          duration: audioBuffer.duration,
-          sampleRate: audioBuffer.sampleRate,
-          nyquistFreq: audioBuffer.sampleRate / 2,
+          duration,
+          sampleRate,
+          nyquistFreq: sampleRate / 2,
         };
 
-        console.log(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
+        debugLog(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
         if (spectrogramData.length > 0) {
-          console.log(
+          debugLog(
             `📊 Generated spectrogram: ${spectrogramData.length} x ${spectrogramData[0].length}`,
           );
         }
@@ -150,7 +145,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         const maxDisplayFreqs = 256;
 
         if (spectrogramData.length > maxDisplayFrames) {
-          console.log(
+          debugLog(
             `⬇️ Downsampling time: ${spectrogramData.length} → ${maxDisplayFrames}`,
           );
           const timeStep = Math.floor(
@@ -162,7 +157,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         }
 
         if (displayData.length && displayData[0].length > maxDisplayFreqs) {
-          console.log(
+          debugLog(
             `⬇️ Downsampling frequency: ${displayData[0].length} → ${maxDisplayFreqs}`,
           );
           const freqStep = Math.floor(displayData[0].length / maxDisplayFreqs);
@@ -174,7 +169,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         if (!displayData.length || !displayData[0]?.length) {
           spectrogramDataRef.current = [];
           setIsProcessed(true);
-          console.log("✅ WASM audio processing completed (no FFT frames)");
+          debugLog("✅ WASM audio processing completed (no FFT frames)");
           return;
         }
 
@@ -195,18 +190,13 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         spectrogramDataRef.current = normalizedData;
         hasRenderedInitialRef.current = false;
         setIsProcessed(true);
-        console.log("✅ WASM audio processing completed");
+        debugLog("✅ WASM audio processing completed");
       } catch (error) {
-        console.error("❌ Error processing audio:", error);
+        debugError("❌ Error processing audio:", error);
         spectrogramDataRef.current = null;
         setIsProcessed(false);
       } finally {
         setIsProcessing(false);
-        console.timeEnd(pipelineLabel);
-        const pipelineDuration = performance.now() - pipelineStart;
-        console.log(
-          `${pipelineLabel} complete in ${pipelineDuration.toFixed(2)}ms`,
-        );
       }
     },
     [getOrCreateAudioContext, isProcessing],
@@ -228,7 +218,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       const progressiveDraw = progressive;
 
       if (progressiveDraw) {
-        console.log("=== RENDERING SPECTROGRAM (progressive) ===");
+        debugLog("=== RENDERING SPECTROGRAM (progressive) ===");
       }
       const ctx = canvas.getContext("2d");
 
@@ -409,7 +399,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           ctx.fillText("Amplitude (dB)", 0, 0);
           ctx.restore();
 
-          console.log(
+          debugLog(
             progressiveDraw
               ? "✅ Spectrogram rendering completed (progressive)"
               : "✅ Spectrogram rendering completed",

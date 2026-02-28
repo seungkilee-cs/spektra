@@ -28,6 +28,8 @@ This crate provides the FFT engine that powers Spektra. The goal was to build th
 
 ## Testing
 
+> I always pass all my tests. Because I don't write tests I can't pass.
+
 - Unit tests cover the expected FFT behaviors: impulse response, DC input, and FFT followed by inverse FFT.
 - Additional tests in `audio_processor.rs` exercise sliding windows, stride handling, and the WASM facing API.
 

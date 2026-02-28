@@ -169,8 +169,23 @@ body {
 .upload-section {
   width: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
+}
+
+.upload-error {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+  animation: fadeInUp 0.25s ease-out;
 }
 
 .info-section {

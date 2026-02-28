@@ -6,6 +6,7 @@ import {
   profileMeasure,
 } from "./profiler";
 import { ensureAudioContext } from "./audioContextManager";
+import { debugLog, debugError } from "./debug";
 
 let wasmInitialized = false;
 let wasmModule = null;
@@ -37,9 +38,9 @@ function detectWasmSimd() {
 }
 
 if (wasmSimdSupported) {
-  console.log("⚙️ WebAssembly SIMD detected — enabling vectorized FFT path");
+  debugLog("⚙️ WebAssembly SIMD detected — enabling vectorized FFT path");
 } else {
-  console.info(
+  debugLog(
     "⚠️ WebAssembly SIMD unavailable — running scalar FFT path (Rust fallback will be used)",
   );
 }
@@ -49,17 +50,14 @@ export async function initWasmAudio() {
     return wasmModule;
   }
 
-  console.time("🦀 WASM Audio Initialization");
   try {
     wasmModule = await init();
     wasmInitialized = true;
-    console.log("✅ Rust WASM Audio module loaded successfully");
+    debugLog("✅ Rust WASM Audio module loaded successfully");
     return wasmModule;
   } catch (error) {
-    console.error("❌ Failed to load WASM audio module:", error);
+    debugError("❌ Failed to load WASM audio module:", error);
     throw new Error(`WASM initialization failed: ${error.message}`);
-  } finally {
-    console.timeEnd("🦀 WASM Audio Initialization");
   }
 }
 
@@ -95,6 +93,8 @@ async function initWorker() {
   return workerInitPromise;
 }
 
+const WORKER_TIMEOUT_MS = 30_000;
+
 async function processViaWorker(audioData, fftSize, overlap) {
   const worker = await initWorker();
 
@@ -107,6 +107,7 @@ async function processViaWorker(audioData, fftSize, overlap) {
         return;
       }
 
+      clearTimeout(timer);
       worker.removeEventListener("message", handleMessage);
 
       if (!data.success) {
@@ -116,6 +117,12 @@ async function processViaWorker(audioData, fftSize, overlap) {
 
       resolve(data);
     };
+
+    // Reject if worker never responds (crash, stall, browser termination)
+    const timer = setTimeout(() => {
+      worker.removeEventListener("message", handleMessage);
+      reject(new Error(`Spectrogram worker timed out after ${WORKER_TIMEOUT_MS}ms`));
+    }, WORKER_TIMEOUT_MS);
 
     worker.addEventListener("message", handleMessage);
 
@@ -139,7 +146,6 @@ export async function processAudioWithRustFFT(
   sharedAudioContext = null,
 ) {
   profileMark("pipeline:start");
-  console.time("🦀 Total Rust Audio Processing");
 
   let audioContext = sharedAudioContext;
   try {
@@ -157,9 +163,12 @@ export async function processAudioWithRustFFT(
     profileMeasure("decode", "decode:start", "decode:end");
 
     const audioData = new Float32Array(audioBuffer.getChannelData(0));
+    // Return these so callers don't need to re-decode the audio to get metadata
+    const audioDuration = audioBuffer.duration;
+    const audioSampleRate = audioBuffer.sampleRate;
 
-    console.log(
-      `🎵 Loaded audio: ${audioData.length} samples @ ${audioBuffer.sampleRate}Hz`,
+    debugLog(
+      `🎵 Loaded audio: ${audioData.length} samples @ ${audioSampleRate}Hz`,
     );
 
     const hopSize = Math.max(1, Math.floor(fftSize * (1 - overlap)));
@@ -212,19 +221,19 @@ export async function processAudioWithRustFFT(
       sampleOffset += hopSize * numWindows;
 
       if (timings) {
-        console.log(
+        debugLog(
           `👷 Worker chunk processed ${numWindows} windows (${chunkFreqBins} bins) in ${timings.fftMs}ms`,
         );
       }
     }
 
-    console.log(
+    debugLog(
       `🦀 Generated spectrogram: ${spectrogram.length} x ${spectrogram[0]?.length || 0}`,
     );
 
-    return spectrogram;
+    return { spectrogram, duration: audioDuration, sampleRate: audioSampleRate };
   } catch (error) {
-    console.error("❌ Rust audio processing failed:", error);
+    debugError("❌ Rust audio processing failed:", error);
     throw error;
   } finally {
     if (isProfilingEnabled()) {
@@ -232,8 +241,6 @@ export async function processAudioWithRustFFT(
       profileMeasure("pipeline", "pipeline:start", "pipeline:end");
       profileFlush();
     }
-
-    console.timeEnd("🦀 Total Rust Audio Processing");
   }
 }
 

@@ -1,4 +1,4 @@
-export const DEBUG = true; // Set this to false to disable debug logs
+export const DEBUG = import.meta.env.DEV; // true in dev, false in production builds
 
 export function debugLog(...args) {
   if (DEBUG) {

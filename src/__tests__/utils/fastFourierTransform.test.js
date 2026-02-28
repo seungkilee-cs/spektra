@@ -1,39 +1,25 @@
-import { fft, ifft, Complex } from "../../utils/fastFourierTransform.js";
+/**
+ * Legacy FFT test — skipped.
+ *
+ * The JavaScript FFT implementation (fastFourierTransform.js) was removed
+ * when the codebase migrated to Rust/WASM for audio processing.
+ * These tests are preserved as documentation of the removed functionality.
+ *
+ * The equivalent logic is now tested in Rust unit tests inside:
+ *   rust-audio-processor/src/fft.rs  (#[cfg(test)] blocks)
+ *
+ * To run Rust tests:  cd rust-audio-processor && cargo test
+ */
+import { describe, it } from "vitest";
 
-function testFFT() {
-  // Test Case: Simple Signal
-  const signal = [
-    { real: 1, imag: 0 },
-    { real: -1, imag: 0 },
-    { real: 1, imag: 0 },
-    { real: -1, imag: 0 },
-  ];
+describe.skip("fastFourierTransform (legacy JS — removed)", () => {
+  it("should perform forward FFT on a simple signal", () => {
+    // Was: fft([{real:1,imag:0}, {real:-1,imag:0}, ...])
+    // Module no longer exists — see rust-audio-processor/src/fft.rs
+  });
 
-  console.log("Original Signal:", signal);
-
-  // Perform FFT
-  const spectrum = fft(signal);
-
-  console.log("FFT Spectrum:", spectrum);
-
-  // Perform IFFT
-  const reconstructedSignal = ifft(spectrum);
-
-  console.log("Reconstructed Signal:", reconstructedSignal);
-
-  // Validate Reconstruction
-  for (let i = 0; i < signal.length; i++) {
-    if (
-      Math.abs(signal[i].real - reconstructedSignal[i].real) > Number.EPSILON ||
-      Math.abs(signal[i].imag - reconstructedSignal[i].imag) > Number.EPSILON
-    ) {
-      console.error(`Mismatch at index ${i}`);
-      return false;
-    }
-  }
-
-  console.log("Test Passed!");
-}
-
-// Run Test
-testFFT();
+  it("should reconstruct original signal via IFFT", () => {
+    // Was: ifft(fft(signal)) ≈ signal within Number.EPSILON
+    // Module no longer exists — see rust-audio-processor/src/fft.rs
+  });
+});

@@ -10,10 +10,12 @@ function App() {
   const [file, setFile] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const handleFileSelect = async (selectedFile) => {
     try {
       setIsProcessing(true);
+      setErrorMessage(null);
       debugLog("=== FILE SELECTION START ===");
       setFile(null);
       setMetadata(null);
@@ -35,7 +37,7 @@ function App() {
 
       if (selectedFile.type && !supportedTypes.includes(selectedFile.type)) {
         debugError("Unsupported file type:", selectedFile.type);
-        alert("Please select a supported audio file format.");
+        setErrorMessage("Please select a supported audio file format.");
         return;
       }
 
@@ -47,7 +49,7 @@ function App() {
 
       if (codecLower.includes("alac") || containerLower.includes("alac")) {
         debugError("Unsupported ALAC codec detected");
-        alert(
+        setErrorMessage(
           "Apple Lossless (ALAC) files are not currently supported. Please upload MP3, AAC/M4A, FLAC, WAV, OGG, AIFF, WebM, or Opus."
         );
         return;
@@ -58,6 +60,7 @@ function App() {
       debugLog("=== FILE SELECTION END ===");
     } catch (error) {
       debugError("Error during file selection or metadata extraction:", error);
+      setErrorMessage("An error occurred reading the file. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -91,6 +94,11 @@ function App() {
 
           <div className="upload-section">
             <FileUpload onFileSelect={handleFileSelect} />
+            {errorMessage && (
+              <p className="upload-error" role="alert">
+                ⚠️ {errorMessage}
+              </p>
+            )}
           </div>
 
           <div className="info-section">

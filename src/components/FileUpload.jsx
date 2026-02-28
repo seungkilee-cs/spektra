@@ -6,22 +6,33 @@ const FileUpload = ({ onFileSelect }) => {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
 
-  // Expandable file formats configuration
-  const supportedFormats = [
-    { type: "audio/mpeg", extension: "MP3", color: "#4285f4" },
-    { type: "audio/flac", extension: "FLAC", color: "#0f9d58" },
-    { type: "audio/wav", extension: "WAV", color: "#9c27b0" },
-    { type: "audio/ogg", extension: "OGG", color: "#f44336" },
-    { type: "audio/mp4", extension: "AAC", color: "#ff9800" },
-    { type: "audio/m4a", extension: "M4A", color: "#ff9800" },
-    { type: "audio/x-m4a", extension: "M4A", color: "#ff9800" },
-    { type: "audio/aac", extension: "AAC", color: "#ff9800" },
-    { type: "audio/x-aiff", extension: "AIFF", color: "#795548" },
-    { type: "audio/webm", extension: "WEBM", color: "#607d8b" },
-    { type: "audio/opus", extension: "OPUS", color: "#e91e63" },
+  // Expandable file formats configuration.
+  // `acceptedTypes` lists all MIME variants for <input accept> and validation.
+  // `displayFormats` collapses visually identical entries so badges are not duplicated.
+  const acceptedTypes = [
+    "audio/mpeg",
+    "audio/flac",
+    "audio/wav",
+    "audio/ogg",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
+    "audio/aac",
+    "audio/x-aiff",
+    "audio/webm",
+    "audio/opus",
   ];
 
-  const acceptedTypes = supportedFormats.map((format) => format.type);
+  const displayFormats = [
+    { type: "audio/mpeg",   extension: "MP3",     color: "#4285f4" },
+    { type: "audio/flac",   extension: "FLAC",    color: "#0f9d58" },
+    { type: "audio/wav",    extension: "WAV",     color: "#9c27b0" },
+    { type: "audio/ogg",    extension: "OGG",     color: "#f44336" },
+    { type: "audio/mp4",    extension: "M4A/AAC", color: "#ff9800" },
+    { type: "audio/x-aiff", extension: "AIFF",    color: "#795548" },
+    { type: "audio/webm",   extension: "WEBM",    color: "#607d8b" },
+    { type: "audio/opus",   extension: "OPUS",    color: "#e91e63" },
+  ];
 
   const handleFiles = (selectedFiles) => {
     const selectedFile = selectedFiles[0];
@@ -34,8 +45,9 @@ const FileUpload = ({ onFileSelect }) => {
       });
       onFileSelect(selectedFile);
     } else {
-      debugError("Invalid file type");
-      alert("Please select a supported audio file format.");
+      // Let the parent (App.jsx) handle the error display — just log here
+      debugError("Invalid file type:", selectedFile.type);
+      onFileSelect(selectedFile);
     }
   };
 
@@ -101,9 +113,9 @@ const FileUpload = ({ onFileSelect }) => {
           </div>
 
           <div className="file-types">
-            {supportedFormats.map((format, index) => (
+            {displayFormats.map((format, index) => (
               <span
-                key={format.extension}
+                key={format.type}
                 className="file-type-badge"
                 style={{
                   "--badge-color": format.color,
