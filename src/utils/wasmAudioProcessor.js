@@ -32,7 +32,8 @@ function detectWasmSimd() {
   try {
     return WebAssembly.validate(simdModule);
   } catch (error) {
-    console.warn("WebAssembly SIMD detection failed", error);
+    // ENH-005: use debugLog so this never appears in production console output
+    debugLog("WebAssembly SIMD detection failed", error);
     return false;
   }
 }
@@ -126,6 +127,9 @@ async function processViaWorker(audioData, fftSize, overlap) {
 
     worker.addEventListener("message", handleMessage);
 
+    // ENH-004: transfer audioData.buffer (zero-copy) to the worker.
+    // The caller must pass a freshly-sliced Float32Array (chunkTransferable)
+    // so the original audio buffer remains intact for subsequent chunks.
     worker.postMessage(
       {
         type: "process",
@@ -193,10 +197,14 @@ export async function processAudioWithRustFFT(
 
       const chunkSamples = fftSize + hopSize * (windowsThisChunk - 1);
       const chunkData = audioData.subarray(sampleOffset, sampleOffset + chunkSamples);
-      const chunkCopy = chunkData.slice();
+      // ENH-004: `.slice()` creates an owned copy so we can safely transfer
+      // its underlying ArrayBuffer to the worker via postMessage().
+      // After the transfer the buffer is neutered (length → 0); the original
+      // `audioData` subarray is unaffected because it was never transferred.
+      const chunkTransferable = chunkData.slice();
 
       const { spectrogramFlat, numWindows, freqBins: chunkFreqBins, timings } = await processViaWorker(
-        chunkCopy,
+        chunkTransferable,
         fftSize,
         overlap,
       );

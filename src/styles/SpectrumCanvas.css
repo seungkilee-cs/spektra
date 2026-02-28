@@ -83,7 +83,32 @@
   transform: translateY(-2px);
 }
 
-/* Fixed processing indicator positioning */
+/* ENH-001: error panel displayed when spectrogram processing fails */
+.spectrum-error-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  line-height: 1.5;
+  animation: fadeInUp 0.25s ease-out;
+}
+
+.spectrum-error-panel__icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  margin-top: 1px;
+}
+
+.spectrum-error-panel__message {
+  flex: 1;
+}
+
+/* Processing indicator */
 .processing-indicator {
   position: absolute;
   top: clamp(-32px, -6vw, -20px);
