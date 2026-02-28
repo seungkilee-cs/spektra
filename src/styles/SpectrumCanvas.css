@@ -83,6 +83,85 @@
   transform: translateY(-2px);
 }
 
+/* FEAT-002/003/004/005: toolbar above the canvas */
+.spectrum-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-family: "JetBrains Mono", monospace;
+  font-size: clamp(11px, 1.8vw, 13px);
+}
+
+.spectrum-toolbar__label {
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+  font-size: clamp(10px, 1.6vw, 11px);
+}
+
+.spectrum-toolbar__select {
+  appearance: none;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 7px;
+  padding: 5px 22px 5px 9px;
+  color: #e2e8f0;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.spectrum-toolbar__select:focus {
+  outline: none;
+  border-color: rgba(148, 163, 184, 0.6);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+}
+
+.spectrum-toolbar__select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.spectrum-toolbar__btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 7px;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 5px 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.spectrum-toolbar__btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.spectrum-toolbar__spacer {
+  flex: 1;
+}
+
+/* FEAT-005: zoom hint text */
+.spectrum-zoom-hint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: clamp(10px, 1.5vw, 11px);
+  color: #475569;
+  text-align: center;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+/* Hide the inactive canvas without removing it from DOM (preserves ref) */
+.spectrum-canvas--hidden {
+  display: none;
+}
+
 /* ENH-001: error panel displayed when spectrogram processing fails */
 .spectrum-error-panel {
   display: flex;

@@ -239,7 +239,8 @@ export async function processAudioWithRustFFT(
       `🦀 Generated spectrogram: ${spectrogram.length} x ${spectrogram[0]?.length || 0}`,
     );
 
-    return { spectrogram, duration: audioDuration, sampleRate: audioSampleRate };
+    // FEAT-001: return audioBuffer so callers can use it for playback
+    return { spectrogram, duration: audioDuration, sampleRate: audioSampleRate, audioBuffer };
   } catch (error) {
     debugError("❌ Rust audio processing failed:", error);
     throw error;

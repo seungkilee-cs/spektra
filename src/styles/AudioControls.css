@@ -1,0 +1,88 @@
+/* AudioControls — FEAT-001 */
+
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(71, 85, 105, 0.35);
+  border-radius: 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: clamp(11px, 1.8vw, 13px);
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.audio-controls__btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: clamp(13px, 2vw, 15px);
+  line-height: 1;
+  padding: 5px 9px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.audio-controls__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.audio-controls__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.audio-controls__time,
+.audio-controls__duration {
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+  flex-shrink: 0;
+  font-size: clamp(11px, 1.6vw, 12px);
+}
+
+.audio-controls__time {
+  color: #e2e8f0;
+  min-width: 3.8ch;
+}
+
+.audio-controls__progress-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(71, 85, 105, 0.45);
+  border-radius: 999px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.audio-controls__progress-track:focus {
+  outline: 2px solid rgba(148, 163, 184, 0.6);
+  outline-offset: 2px;
+}
+
+.audio-controls__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #a78bfa);
+  border-radius: 999px;
+  transition: width 0.05s linear;
+  pointer-events: none;
+}
+
+@media (max-width: 480px) {
+  .audio-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .audio-controls__progress-track {
+    order: 10;
+    flex-basis: 100%;
+  }
+}

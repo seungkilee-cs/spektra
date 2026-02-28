@@ -1,7 +1,9 @@
 import React, { useRef, useEffect, useState, useCallback, useId } from "react";
 import { processAudioWithRustFFT } from "../utils/wasmAudioProcessor";
 import { ensureAudioContext } from "../utils/audioContextManager";
+import { GpuSpectrogramRenderer } from "../utils/gpuSpectrogramRenderer";
 import { debugLog, debugError } from "../utils/debug";
+import AudioControls from "./AudioControls";
 import "../styles/SpectrumCanvas.css";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +56,9 @@ function spekColorMap(normalizedMagnitude) {
  */
 const SPEK_LUT = Array.from({ length: 256 }, (_, i) => spekColorMap(i / 255));
 
+/** FFT sizes available in the UI selector (FEAT-003) */
+const FFT_SIZE_OPTIONS = [256, 512, 1024, 2048, 4096];
+
 const scheduleIdleCallback =
   typeof window !== "undefined" && typeof window.requestIdleCallback === "function"
     ? window.requestIdleCallback.bind(window)
@@ -66,15 +71,36 @@ const cancelIdle =
 
 const SpectrumCanvas = ({ fileUploaded }) => {
   const canvasRef = useRef(null);
+  const webglCanvasRef = useRef(null);   // FEAT-004: offscreen canvas for WebGL
   const containerRef = useRef(null);
   const spectrogramDataRef = useRef(null);
   const audioMetadataRef = useRef(null);
   const audioContextRef = useRef(null);
+  const audioBufferRef = useRef(null);   // FEAT-001: decoded AudioBuffer for playback
+  const gpuRendererRef = useRef(null);   // FEAT-004: GpuSpectrogramRenderer instance
+
   const [canvasSize, setCanvasSize] = useState({ width: 900, height: 450 });
   const [isProcessed, setIsProcessed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   // ENH-001: surface processing errors to the user instead of silently blanking
   const [processingError, setProcessingError] = useState(null);
+
+  // FEAT-003: FFT size selector
+  const [fftSize, setFftSize] = useState(1024);
+
+  // FEAT-004: renderer toggle — "canvas2d" | "webgl"
+  const [renderer, setRenderer] = useState("canvas2d");
+  const [webglAvailable, setWebglAvailable] = useState(true);
+
+  // FEAT-001: playhead state
+  const [playheadTime, setPlayheadTime] = useState(null);
+
+  // FEAT-005: zoom/pan view state { t0, t1 } fraction of [0,1] over time axis
+  const viewRef = useRef({ t0: 0, t1: 1 });
+  const [viewVersion, setViewVersion] = useState(0); // bump to trigger re-render
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, t0: 0, t1: 1 });
+
   const canvasDescriptionId = useId();
   const pendingRenderRef = useRef({ frame: null, idle: null });
   const hasRenderedInitialRef = useRef(false);
@@ -172,14 +198,16 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         }
 
         const wasmStart = performance.now();
-        // processAudioWithRustFFT returns { spectrogram, duration, sampleRate }
+        // processAudioWithRustFFT returns { spectrogram, duration, sampleRate, audioBuffer }
         // so we don't need to decode the audio a second time just for metadata
-        const { spectrogram: spectrogramData, duration, sampleRate } = await processAudioWithRustFFT(
+        const { spectrogram: spectrogramData, duration, sampleRate, audioBuffer } = await processAudioWithRustFFT(
           file,
-          1024,
+          fftSize,   // FEAT-003: use selected FFT size
           0.5,
           audioContext,
         );
+        // FEAT-001: store decoded buffer for playback
+        audioBufferRef.current = audioBuffer ?? null;
         const wasmTime = performance.now() - wasmStart;
 
         audioMetadataRef.current = {
@@ -247,6 +275,9 @@ const SpectrumCanvas = ({ fileUploaded }) => {
 
         spectrogramDataRef.current = normalizedData;
         hasRenderedInitialRef.current = false;
+        viewRef.current = { t0: 0, t1: 1 };   // FEAT-005: reset zoom on new file
+        setPlayheadTime(null);                  // FEAT-001: reset playhead
+        setViewVersion(0);
         setIsProcessed(true);
         debugLog("✅ WASM audio processing completed");
       } catch (error) {
@@ -264,7 +295,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         setIsProcessing(false);
       }
     },
-    [getOrCreateAudioContext, isProcessing],
+    [getOrCreateAudioContext, isProcessing, fftSize],
   );
 
   // File processing trigger
@@ -274,10 +305,128 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   }, [fileUploaded, isProcessing, isProcessed, processAudioFile]);
 
+  // FEAT-003: re-process when FFT size changes (only if a file is already loaded)
+  useEffect(() => {
+    if (fileUploaded && isProcessed) {
+      setIsProcessed(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fftSize]);
+
+  // FEAT-004: detect WebGL availability once on mount
+  useEffect(() => {
+    try {
+      const testCanvas = document.createElement("canvas");
+      const gl = testCanvas.getContext("webgl2") || testCanvas.getContext("webgl");
+      setWebglAvailable(!!gl);
+    } catch (_) {
+      setWebglAvailable(false);
+    }
+  }, []);
+
+  // FEAT-005: wheel handler for zoom
+  const handleWheel = useCallback((e) => {
+    if (!isProcessed) return;
+    e.preventDefault();
+    const { t0, t1 } = viewRef.current;
+    const span = t1 - t0;
+    const zoomFactor = e.deltaY < 0 ? 0.85 : 1.15;
+    const newSpan = Math.min(1, Math.max(0.02, span * zoomFactor));
+    // Zoom toward the cursor position on the time axis
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const ratio = rect ? (e.clientX - rect.left) / rect.width : 0.5;
+    const center = t0 + ratio * span;
+    const newT0 = Math.max(0, center - ratio * newSpan);
+    const newT1 = Math.min(1, newT0 + newSpan);
+    viewRef.current = { t0: newT0, t1: newT1 };
+    setViewVersion((v) => v + 1);
+  }, [isProcessed]);
+
+  // Attach wheel listener with { passive: false } so preventDefault works
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
+  // FEAT-005: pan handlers
+  const handlePointerDown = useCallback((e) => {
+    if (!isProcessed) return;
+    isPanningRef.current = true;
+    panStartRef.current = { x: e.clientX, ...viewRef.current };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, [isProcessed]);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!isPanningRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { t0, t1 } = panStartRef.current;
+    const span = t1 - t0;
+    const dx = (e.clientX - panStartRef.current.x) / canvas.getBoundingClientRect().width;
+    const shift = -dx * span;
+    const newT0 = Math.max(0, Math.min(1 - span, t0 + shift));
+    viewRef.current = { t0: newT0, t1: newT0 + span };
+    setViewVersion((v) => v + 1);
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    isPanningRef.current = false;
+  }, []);
+
+  // FEAT-002: export spectrogram canvas as PNG
+  const handleExportPng = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const name = fileUploaded?.name?.replace(/\.[^.]+$/, "") || "spectrogram";
+      a.download = `${name}-spectrogram.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }, [fileUploaded]);
+
+  // FEAT-001: double-click on canvas to reset zoom
+  const handleDoubleClick = useCallback(() => {
+    viewRef.current = { t0: 0, t1: 1 };
+    setViewVersion((v) => v + 1);
+  }, []);
+
   const renderSpectrogramFromData = useCallback(
     (normalizedData, { progressive = true } = {}) => {
+      if (!normalizedData || !normalizedData.length) return;
+
+      // FEAT-004: WebGL renderer path
+      if (renderer === "webgl") {
+        const glCanvas = webglCanvasRef.current;
+        if (!glCanvas) return;
+        try {
+          if (!gpuRendererRef.current) {
+            gpuRendererRef.current = new GpuSpectrogramRenderer(glCanvas);
+          }
+          // FEAT-005: slice data to current view window
+          const { t0, t1 } = viewRef.current;
+          const totalFrames = normalizedData.length;
+          const startFrame = Math.floor(t0 * totalFrames);
+          const endFrame = Math.ceil(t1 * totalFrames);
+          const viewData = normalizedData.slice(startFrame, endFrame);
+          gpuRendererRef.current.render(viewData, canvasSize.width, canvasSize.height);
+        } catch (err) {
+          debugError("WebGL render failed, falling back to Canvas 2D:", err);
+          setRenderer("canvas2d");
+          setWebglAvailable(false);
+        }
+        return;
+      }
+
+      // Canvas 2D path
       const canvas = canvasRef.current;
-      if (!canvas || !normalizedData || !normalizedData.length) return;
+      if (!canvas) return;
 
       cancelPendingRender();
       const progressiveDraw = progressive;
@@ -298,8 +447,17 @@ const SpectrumCanvas = ({ fileUploaded }) => {
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const timeBins = normalizedData.length;
-      const freqBins = normalizedData[0].length;
+      // FEAT-005: slice to current view window
+      const { t0, t1 } = viewRef.current;
+      const totalFrames = normalizedData.length;
+      const startFrame = Math.floor(t0 * totalFrames);
+      const endFrame = Math.ceil(t1 * totalFrames);
+      const viewData = normalizedData.slice(startFrame, endFrame);
+
+      const timeBins = viewData.length;
+      const freqBins = viewData[0]?.length ?? 0;
+      if (!timeBins || !freqBins) return;
+
       const binWidth = plotWidth / timeBins;
       const binHeight = plotHeight / freqBins;
 
@@ -311,7 +469,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         const endIndex = Math.min(startIndex + chunkSize, timeBins);
 
         for (let timeIndex = startIndex; timeIndex < endIndex; timeIndex += 1) {
-          const frame = normalizedData[timeIndex];
+          const frame = viewData[timeIndex];
           for (let freqIndex = 0; freqIndex < freqBins; freqIndex += 1) {
             const magnitude = frame[freqIndex];
             // ENH-002: use pre-computed LUT — O(1) index lookup, no branch evaluation per pixel
@@ -325,32 +483,33 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         }
 
         if (progressiveDraw && endIndex < timeBins) {
-          const scheduleNext = () => {
+          pendingRenderRef.current.idle = scheduleIdleCallback(() => {
             pendingRenderRef.current.frame = requestAnimationFrame(() => {
               drawChunk(endIndex);
             });
-          };
-
-          pendingRenderRef.current.idle = scheduleIdleCallback(() => {
-            scheduleNext();
           }, { timeout: 32 });
         } else {
+          // ── Axes & labels ──────────────────────────────────────────────
           const fontSize = Math.max(10, Math.min(12, canvasSize.width / 80));
           ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
           ctx.fillStyle = "#94a3b8";
 
-          const duration = audioMetadataRef.current?.duration || 240;
+          const totalDuration = audioMetadataRef.current?.duration || 240;
           const maxFreq = audioMetadataRef.current?.nyquistFreq || 22050;
+
+          // Visible time window in seconds
+          const visStart = t0 * totalDuration;
+          const visEnd   = t1 * totalDuration;
+          const visDuration = visEnd - visStart;
 
           ctx.textAlign = "center";
           const timeSteps = Math.min(10, Math.floor(plotWidth / 80));
           for (let i = 0; i <= timeSteps; i += 1) {
             const x = leftMargin + (i * plotWidth) / timeSteps;
-            const timeValue = (i * duration) / timeSteps;
+            const timeValue = visStart + (i * visDuration) / timeSteps;
             const minutes = Math.floor(timeValue / 60);
             const seconds = Math.floor(timeValue % 60);
             const timeLabel = `${minutes}:${seconds.toString().padStart(2, "0")}`;
-
             ctx.fillText(timeLabel, x, canvas.height - bottomMargin / 2);
 
             if (i > 0 && i < timeSteps) {
@@ -373,7 +532,6 @@ const SpectrumCanvas = ({ fileUploaded }) => {
               freqValue >= 1000
                 ? `${(freqValue / 1000).toFixed(1)}k`
                 : `${Math.floor(freqValue)}`;
-
             ctx.fillText(freqLabel, leftMargin - 10, y + fontSize / 2);
 
             if (i > 0 && i < freqSteps) {
@@ -393,9 +551,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           for (let i = 0; i <= dbSteps; i += 1) {
             const y = topMargin + (i * plotHeight) / dbSteps;
             const dbValue = -(dbRange * (dbSteps - i)) / dbSteps;
-            const dbLabel = `${dbValue}dB`;
-
-            ctx.fillText(dbLabel, leftMargin + plotWidth + 10, y + fontSize / 2);
+            ctx.fillText(`${dbValue}dB`, leftMargin + plotWidth + 10, y + fontSize / 2);
 
             if (i > 0 && i < dbSteps) {
               ctx.strokeStyle = "rgba(71, 85, 105, 0.1)";
@@ -426,6 +582,23 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           ctx.fillText("Amplitude (dB)", 0, 0);
           ctx.restore();
 
+          // FEAT-001: draw playhead line
+          if (playheadTime !== null && totalDuration > 0) {
+            const phFraction = (playheadTime / totalDuration - t0) / (t1 - t0);
+            if (phFraction >= 0 && phFraction <= 1) {
+              const phX = leftMargin + phFraction * plotWidth;
+              ctx.save();
+              ctx.strokeStyle = "rgba(251, 191, 36, 0.9)";
+              ctx.lineWidth = 2;
+              ctx.setLineDash([]);
+              ctx.beginPath();
+              ctx.moveTo(phX, topMargin);
+              ctx.lineTo(phX, canvas.height - bottomMargin);
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+
           debugLog(
             progressiveDraw
               ? "✅ Spectrogram rendering completed (progressive)"
@@ -440,7 +613,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         drawChunk(0);
       }
     },
-    [audioMetadataRef, cancelPendingRender, canvasSize],
+    [audioMetadataRef, cancelPendingRender, canvasSize, renderer, playheadTime],
   );
 
   useEffect(() => {
@@ -456,15 +629,36 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   }, [canvasSize, isProcessed, renderSpectrogramFromData]);
 
+  // FEAT-005: re-render on zoom/pan view change
+  useEffect(() => {
+    if (spectrogramDataRef.current && isProcessed) {
+      renderSpectrogramFromData(spectrogramDataRef.current, { progressive: false });
+    }
+  // viewVersion is the trigger; renderSpectrogramFromData is stable enough
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewVersion]);
+
+  // FEAT-001: re-render on playhead update (non-progressive to avoid chunking flicker)
+  useEffect(() => {
+    if (spectrogramDataRef.current && isProcessed) {
+      renderSpectrogramFromData(spectrogramDataRef.current, { progressive: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playheadTime]);
+
   // Reset cached data when file changes
   useEffect(() => {
     if (!fileUploaded) {
       cancelPendingRender();
       spectrogramDataRef.current = null;
       audioMetadataRef.current = null;
+      audioBufferRef.current = null;     // FEAT-001
+      gpuRendererRef.current = null;     // FEAT-004
       setIsProcessed(false);
       setIsProcessing(false);
-      setProcessingError(null); // ENH-001: clear error when user picks a new file
+      setProcessingError(null);
+      setPlayheadTime(null);             // FEAT-001
+      viewRef.current = { t0: 0, t1: 1 }; // FEAT-005
       hasRenderedInitialRef.current = false;
     }
   }, [cancelPendingRender, fileUploaded]);
@@ -503,6 +697,8 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     }
   }, [fileUploaded, canvasSize]);
 
+  const isZoomed = viewRef.current.t0 > 0.001 || viewRef.current.t1 < 0.999;
+
   return (
     <div
       className="spectrum-canvas-container"
@@ -516,11 +712,72 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         </div>
       )}
 
-      {/* ENH-001: user-visible error panel shown when processing fails */}
+      {/* ENH-001: user-visible error panel */}
       {processingError && !isProcessing && (
         <div className="spectrum-error-panel" role="alert" aria-live="assertive">
           <span className="spectrum-error-panel__icon">⚠️</span>
           <span className="spectrum-error-panel__message">{processingError}</span>
+        </div>
+      )}
+
+      {/* ── Toolbar (shown when spectrogram is ready) ─────────────────── */}
+      {isProcessed && (
+        <div className="spectrum-toolbar">
+          {/* FEAT-003: FFT size selector */}
+          <label className="spectrum-toolbar__label" htmlFor="fft-size-select">
+            FFT
+          </label>
+          <select
+            id="fft-size-select"
+            className="spectrum-toolbar__select"
+            value={fftSize}
+            onChange={(e) => setFftSize(Number(e.target.value))}
+            disabled={isProcessing}
+            title="FFT window size — larger = better frequency resolution, smaller = better time resolution"
+          >
+            {FFT_SIZE_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
+          {/* FEAT-004: renderer toggle */}
+          <label className="spectrum-toolbar__label" htmlFor="renderer-select">
+            Renderer
+          </label>
+          <select
+            id="renderer-select"
+            className="spectrum-toolbar__select"
+            value={renderer}
+            onChange={(e) => setRenderer(e.target.value)}
+            title="Canvas 2D (CPU) or WebGL2 (GPU)"
+          >
+            <option value="canvas2d">Canvas 2D</option>
+            <option value="webgl" disabled={!webglAvailable}>
+              WebGL2{!webglAvailable ? " (unavailable)" : ""}
+            </option>
+          </select>
+
+          {/* FEAT-005: zoom reset */}
+          {isZoomed && (
+            <button
+              className="spectrum-toolbar__btn"
+              onClick={handleDoubleClick}
+              title="Reset zoom to full view"
+            >
+              ⟲ Reset zoom
+            </button>
+          )}
+
+          <span className="spectrum-toolbar__spacer" />
+
+          {/* FEAT-002: export PNG */}
+          <button
+            className="spectrum-toolbar__btn"
+            onClick={handleExportPng}
+            title="Save spectrogram as PNG"
+          >
+            ⬇ Export PNG
+          </button>
         </div>
       )}
 
@@ -530,15 +787,56 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           : "Spectrogram visualization of uploaded audio."}
       </p>
 
+      {/* Canvas 2D — shown when renderer is canvas2d */}
       <canvas
         ref={canvasRef}
         width={canvasSize.width}
         height={canvasSize.height}
-        className="spectrum-canvas"
+        className={`spectrum-canvas${renderer === "webgl" ? " spectrum-canvas--hidden" : ""}`}
         role="img"
         aria-label="Audio spectrogram visualization"
         aria-describedby={canvasDescriptionId}
+        style={{ cursor: isProcessed ? (isPanningRef.current ? "grabbing" : "grab") : "default" }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
       />
+
+      {/* WebGL canvas — shown when renderer is webgl */}
+      <canvas
+        ref={webglCanvasRef}
+        width={canvasSize.width}
+        height={canvasSize.height}
+        className={`spectrum-canvas${renderer === "canvas2d" ? " spectrum-canvas--hidden" : ""}`}
+        role="img"
+        aria-label="Audio spectrogram visualization (WebGL)"
+        aria-describedby={canvasDescriptionId}
+        style={{ cursor: isProcessed ? (isPanningRef.current ? "grabbing" : "grab") : "default" }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
+      />
+
+      {/* FEAT-001: audio playback controls */}
+      {isProcessed && audioBufferRef.current && (
+        <AudioControls
+          audioBuffer={audioBufferRef.current}
+          duration={audioMetadataRef.current?.duration ?? 0}
+          onTimeUpdate={setPlayheadTime}
+          onStop={() => setPlayheadTime(null)}
+        />
+      )}
+
+      {/* FEAT-005: zoom hint */}
+      {isProcessed && (
+        <p className="spectrum-zoom-hint">
+          Scroll to zoom · Drag to pan · Double-click to reset
+        </p>
+      )}
     </div>
   );
 };
