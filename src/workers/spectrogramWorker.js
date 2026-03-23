@@ -1,13 +1,12 @@
 import init, { WasmSpectrogramProcessor } from "../wasm/rust_audio_processor.js";
 
-let initPromise;
+// Eagerly start WASM initialization the moment the worker is created,
+// before any messages arrive, so the first chunk doesn't pay the init cost.
+const initPromise = init();
 let processor = null;
 let currentFftSize = null;
 
 async function ensureWasm() {
-  if (!initPromise) {
-    initPromise = init();
-  }
   await initPromise;
 }
 

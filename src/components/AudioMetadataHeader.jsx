@@ -83,6 +83,11 @@ const AudioMetadataHeader = ({ metadata, file }) => {
     return "Unknown";
   })();
 
+  const isLosslessBool =
+    metadata.lossless === "Yes (lossless)" ? true
+    : metadata.lossless === "No (lossy)" ? false
+    : null;
+
   const summaryMetaItems = [
     formatDisplay,
     metadata.bitrate,
@@ -121,6 +126,14 @@ const AudioMetadataHeader = ({ metadata, file }) => {
       <div className="metadata-header" aria-live="polite">
         <div className="metadata-summary-line">
           <span className="metadata-summary-line__file">📊 {file.name}</span>
+              {isLosslessBool !== null && (
+                <span
+                  className={`lossless-badge ${isLosslessBool ? "lossless-badge--lossless" : "lossless-badge--lossy"}`}
+                  title={isLosslessBool ? "Lossless encoding — full frequency range preserved" : "Lossy encoding — frequency content may be reduced"}
+                >
+                  {isLosslessBool ? "Lossless" : "Lossy"}
+                </span>
+              )}
           <span className="metadata-summary-line__meta">
             {summaryMetaItems.map((value, index) => (
               <span

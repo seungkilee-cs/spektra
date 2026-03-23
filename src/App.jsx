@@ -10,10 +10,12 @@ function App() {
   const [file, setFile] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const handleFileSelect = async (selectedFile) => {
     try {
       setIsProcessing(true);
+      setErrorMessage(null);
       debugLog("=== FILE SELECTION START ===");
       setFile(null);
       setMetadata(null);
@@ -35,7 +37,7 @@ function App() {
 
       if (selectedFile.type && !supportedTypes.includes(selectedFile.type)) {
         debugError("Unsupported file type:", selectedFile.type);
-        alert("Please select a supported audio file format.");
+        setErrorMessage("Unsupported file format. Please upload MP3, AAC/M4A, FLAC, WAV, OGG, AIFF, WebM, or Opus.");
         return;
       }
 
@@ -47,9 +49,7 @@ function App() {
 
       if (codecLower.includes("alac") || containerLower.includes("alac")) {
         debugError("Unsupported ALAC codec detected");
-        alert(
-          "Apple Lossless (ALAC) files are not currently supported. Please upload MP3, AAC/M4A, FLAC, WAV, OGG, AIFF, WebM, or Opus."
-        );
+        setErrorMessage("Apple Lossless (ALAC) cannot be decoded by browsers. Please convert to FLAC or re-download as AAC/MP3.");
         return;
       }
 
@@ -67,6 +67,7 @@ function App() {
     setFile(null);
     setMetadata(null);
     setIsProcessing(false);
+    setErrorMessage(null);
   };
 
   // Landing page - matches the mockup design
@@ -92,6 +93,19 @@ function App() {
           <div className="upload-section">
             <FileUpload onFileSelect={handleFileSelect} />
           </div>
+
+          {errorMessage && (
+            <div className="error-banner" role="alert">
+              <span className="error-banner__text">{errorMessage}</span>
+              <button
+                className="error-banner__dismiss"
+                onClick={() => setErrorMessage(null)}
+                aria-label="Dismiss error"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className="info-section">
             <div className="privacy-note">

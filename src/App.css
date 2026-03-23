@@ -409,6 +409,30 @@ body {
   letter-spacing: 0.06em;
 }
 
+.lossless-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: clamp(0.68rem, 1.6vw, 0.74rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  flex-shrink: 0;
+}
+
+.lossless-badge--lossless {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+
+.lossless-badge--lossy {
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  color: #fdba74;
+}
+
 .metadata-header__chevron {
   display: inline-flex;
   align-items: center;
@@ -545,6 +569,44 @@ body {
   .privacy-note {
     padding: clamp(8px, 4vw, 12px);
   }
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--card-radius);
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  color: #fca5a5;
+  font-size: clamp(0.82rem, 2vw, 0.92rem);
+  animation: fadeInUp 0.25s ease-out;
+}
+
+.error-banner__text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.error-banner__dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #fca5a5;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+  font-family: inherit;
+}
+
+.error-banner__dismiss:hover {
+  opacity: 1;
 }
 
 /* Ensure processing overlay covers the new responsive container */

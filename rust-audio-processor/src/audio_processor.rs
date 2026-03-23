@@ -123,8 +123,8 @@ impl SpectrogramProcessor {
         
         console_log!("Processing {} windows with hop size {}", num_windows, hop_size);
         
-        let mut spectrogram_flat = Vec::new();
-        
+        let mut spectrogram_flat = Vec::with_capacity(num_windows * (self.fft_size / 2));
+
         for window_idx in 0..num_windows {
             let start_idx = window_idx * hop_size;
             let end_idx = start_idx + self.fft_size;

@@ -14,6 +14,37 @@ const cancelIdle =
     ? window.cancelIdleCallback.bind(window)
     : clearTimeout;
 
+// Pre-computed Spek color LUT: 256 entries → [R, G, B, R, G, B, ...]
+// Built once at module load; replaces per-pixel function calls during rendering.
+const COLOR_LUT = (() => {
+  const lut = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255;
+    let r, g, b;
+    if (t < 0.1) {
+      const local = t / 0.1;
+      r = Math.floor(local * 20); g = 0; b = 20 + Math.floor(local * 60);
+    } else if (t < 0.3) {
+      const local = (t - 0.1) / 0.2;
+      r = 20 + Math.floor(local * 30); g = Math.floor(local * 50); b = 80 + Math.floor(local * 175);
+    } else if (t < 0.5) {
+      const local = (t - 0.3) / 0.2;
+      r = 50 + Math.floor(local * 150); g = 50 - Math.floor(local * 50); b = 255;
+    } else if (t < 0.7) {
+      const local = (t - 0.5) / 0.2;
+      r = 200 + Math.floor(local * 55); g = Math.floor(local * 100); b = 255 - Math.floor(local * 100);
+    } else if (t < 0.9) {
+      const local = (t - 0.7) / 0.2;
+      r = 255; g = 100 + Math.floor(local * 155); b = Math.max(0, 155 - Math.floor(local * 155));
+    } else {
+      const local = (t - 0.9) / 0.1;
+      r = 255; g = 255; b = Math.floor(local * 255);
+    }
+    lut[i * 3] = r; lut[i * 3 + 1] = g; lut[i * 3 + 2] = b;
+  }
+  return lut;
+})();
+
 const SpectrumCanvas = ({ fileUploaded }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -77,7 +108,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
     let resizeTimeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updateCanvasSize, 300);
+      resizeTimeout = setTimeout(updateCanvasSize, 150);
     };
 
     updateCanvasSize();
@@ -245,66 +276,45 @@ const SpectrumCanvas = ({ fileUploaded }) => {
 
       const timeBins = normalizedData.length;
       const freqBins = normalizedData[0].length;
-      const binWidth = plotWidth / timeBins;
-      const binHeight = plotHeight / freqBins;
 
       const chunkSize = progressiveDraw
         ? Math.max(32, Math.floor(timeBins / 40))
         : timeBins;
 
-      const spekColorMap = (normalizedMagnitude) => {
-        const t = Math.max(0, Math.min(1, normalizedMagnitude));
-        let r, g, b;
-
-        if (t < 0.1) {
-          const local = t / 0.1;
-          r = Math.floor(local * 20);
-          g = 0;
-          b = 20 + Math.floor(local * 60);
-        } else if (t < 0.3) {
-          const local = (t - 0.1) / 0.2;
-          r = 20 + Math.floor(local * 30);
-          g = Math.floor(local * 50);
-          b = 80 + Math.floor(local * 175);
-        } else if (t < 0.5) {
-          const local = (t - 0.3) / 0.2;
-          r = 50 + Math.floor(local * 150);
-          g = 50 - Math.floor(local * 50);
-          b = 255;
-        } else if (t < 0.7) {
-          const local = (t - 0.5) / 0.2;
-          r = 200 + Math.floor(local * 55);
-          g = Math.floor(local * 100);
-          b = 255 - Math.floor(local * 100);
-        } else if (t < 0.9) {
-          const local = (t - 0.7) / 0.2;
-          r = 255;
-          g = 100 + Math.floor(local * 155);
-          b = Math.max(0, 155 - Math.floor(local * 155));
-        } else {
-          const local = (t - 0.9) / 0.1;
-          r = 255;
-          g = 255;
-          b = Math.floor(local * 255);
-        }
-
-        return { r, g, b };
-      };
-
       const drawChunk = (startIndex) => {
         const endIndex = Math.min(startIndex + chunkSize, timeBins);
 
-        for (let timeIndex = startIndex; timeIndex < endIndex; timeIndex += 1) {
-          const frame = normalizedData[timeIndex];
-          for (let freqIndex = 0; freqIndex < freqBins; freqIndex += 1) {
-            const magnitude = frame[freqIndex];
-            const color = spekColorMap(magnitude);
-            const x = leftMargin + timeIndex * binWidth;
-            const y = topMargin + (freqBins - freqIndex - 1) * binHeight;
+        // Map time-bin range to pixel range, then write directly into an ImageData
+        // buffer — one putImageData call per chunk instead of one fillRect per pixel.
+        const startPx = Math.floor(startIndex * plotWidth / timeBins);
+        const endPx = Math.floor(endIndex * plotWidth / timeBins);
+        const chunkPxWidth = endPx - startPx;
 
-            ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
-            ctx.fillRect(x, y, Math.ceil(binWidth), Math.ceil(binHeight));
+        if (chunkPxWidth > 0) {
+          const imageData = ctx.createImageData(chunkPxWidth, plotHeight);
+          const pixels = imageData.data;
+
+          for (let localPx = 0; localPx < chunkPxWidth; localPx++) {
+            const timeIndex = Math.min(
+              Math.floor((startPx + localPx) * timeBins / plotWidth),
+              timeBins - 1,
+            );
+            const frame = normalizedData[timeIndex];
+            for (let py = 0; py < plotHeight; py++) {
+              const freqIndex = Math.min(
+                Math.floor((plotHeight - 1 - py) * freqBins / plotHeight),
+                freqBins - 1,
+              );
+              const lutIdx = Math.floor(Math.max(0, Math.min(1, frame[freqIndex])) * 255) * 3;
+              const pixelIdx = (py * chunkPxWidth + localPx) * 4;
+              pixels[pixelIdx]     = COLOR_LUT[lutIdx];
+              pixels[pixelIdx + 1] = COLOR_LUT[lutIdx + 1];
+              pixels[pixelIdx + 2] = COLOR_LUT[lutIdx + 2];
+              pixels[pixelIdx + 3] = 255;
+            }
           }
+
+          ctx.putImageData(imageData, leftMargin + startPx, topMargin);
         }
 
         if (progressiveDraw && endIndex < timeBins) {
