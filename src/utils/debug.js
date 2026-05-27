@@ -1,4 +1,20 @@
-export const DEBUG = true; // Set this to false to disable debug logs
+function isDebugEnabled() {
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return window.localStorage?.getItem("spektra-debug") === "enabled";
+  } catch {
+    return false;
+  }
+}
+
+export const DEBUG = isDebugEnabled();
 
 export function debugLog(...args) {
   if (DEBUG) {
