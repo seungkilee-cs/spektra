@@ -57,7 +57,16 @@ export async function extractAudioMetadata(file) {
         "ape",
         "wv",
       ];
-      const lossyKeywords = ["mp3", "aac", "ogg", "opus", "vorbis", "wma"];
+      const lossyKeywords = [
+        "mp3",
+        "mpeg",
+        "layer 3",
+        "aac",
+        "ogg",
+        "opus",
+        "vorbis",
+        "wma",
+      ];
       if (losslessKeywords.some((kw) => codecLower.includes(kw))) return true;
       if (lossyKeywords.some((kw) => codecLower.includes(kw))) return false;
       return null;

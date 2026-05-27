@@ -41,7 +41,7 @@ function setupUnlockListeners(ctx, resolve) {
   unlockHandler = async () => {
     try {
       await ctx.resume();
-    } catch (error) {
+    } catch {
       if (ctx.state !== "running") {
         return;
       }
