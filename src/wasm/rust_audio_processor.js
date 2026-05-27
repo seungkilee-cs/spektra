@@ -95,10 +95,6 @@ function getDataViewMemory0() {
     return cachedDataViewMemory0;
 }
 
-export function main() {
-    wasm.main();
-}
-
 let cachedFloat32ArrayMemory0 = null;
 
 function getFloat32ArrayMemory0() {
@@ -119,10 +115,20 @@ function passArrayF32ToWasm0(arg, malloc) {
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
-
-function isLikeNone(x) {
-    return x === undefined || x === null;
+/**
+ * @param {Float32Array} numbers
+ * @param {number} factor
+ * @returns {Float32Array}
+ */
+export function multiply_array(numbers, factor) {
+    const ptr0 = passArrayF32ToWasm0(numbers, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.multiply_array(ptr0, len0, factor);
+    var v2 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+    return v2;
 }
+
 /**
  * @param {string} name
  * @returns {string}
@@ -142,18 +148,12 @@ export function greet(name) {
     }
 }
 
-/**
- * @param {Float32Array} numbers
- * @param {number} factor
- * @returns {Float32Array}
- */
-export function multiply_array(numbers, factor) {
-    const ptr0 = passArrayF32ToWasm0(numbers, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.multiply_array(ptr0, len0, factor);
-    var v2 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-    return v2;
+function isLikeNone(x) {
+    return x === undefined || x === null;
+}
+
+export function main() {
+    wasm.main();
 }
 
 const SpectrogramBatchFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -182,6 +182,13 @@ export class SpectrogramBatch {
         wasm.__wbg_spectrogrambatch_free(ptr, 0);
     }
     /**
+     * @returns {number}
+     */
+    get num_windows() {
+        const ret = wasm.spectrogrambatch_num_windows(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * @returns {Float32Array}
      */
     get data() {
@@ -189,13 +196,6 @@ export class SpectrogramBatch {
         var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
-    }
-    /**
-     * @returns {number}
-     */
-    get num_windows() {
-        const ret = wasm.spectrogrambatch_num_windows(this.__wbg_ptr);
-        return ret >>> 0;
     }
     /**
      * @returns {number}
@@ -224,15 +224,6 @@ export class WasmSpectrogramProcessor {
         wasm.__wbg_wasmspectrogramprocessor_free(ptr, 0);
     }
     /**
-     * @param {number} fft_size
-     */
-    constructor(fft_size) {
-        const ret = wasm.wasmspectrogramprocessor_new(fft_size);
-        this.__wbg_ptr = ret >>> 0;
-        WasmSpectrogramProcessorFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
-    /**
      * @param {Float32Array} audio_data
      * @returns {Float32Array}
      */
@@ -240,19 +231,6 @@ export class WasmSpectrogramProcessor {
         const ptr0 = passArrayF32ToWasm0(audio_data, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmspectrogramprocessor_process_window(this.__wbg_ptr, ptr0, len0);
-        var v2 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
-        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-        return v2;
-    }
-    /**
-     * @param {Float32Array} audio_data
-     * @param {number} overlap
-     * @returns {Float32Array}
-     */
-    compute_spectrogram(audio_data, overlap) {
-        const ptr0 = passArrayF32ToWasm0(audio_data, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmspectrogramprocessor_compute_spectrogram(this.__wbg_ptr, ptr0, len0, overlap);
         var v2 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v2;
@@ -269,6 +247,28 @@ export class WasmSpectrogramProcessor {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmspectrogramprocessor_process_windows(this.__wbg_ptr, ptr0, len0, overlap, isLikeNone(time_stride) ? 0x100000001 : (time_stride) >>> 0, isLikeNone(freq_stride) ? 0x100000001 : (freq_stride) >>> 0);
         return SpectrogramBatch.__wrap(ret);
+    }
+    /**
+     * @param {Float32Array} audio_data
+     * @param {number} overlap
+     * @returns {Float32Array}
+     */
+    compute_spectrogram(audio_data, overlap) {
+        const ptr0 = passArrayF32ToWasm0(audio_data, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmspectrogramprocessor_compute_spectrogram(this.__wbg_ptr, ptr0, len0, overlap);
+        var v2 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v2;
+    }
+    /**
+     * @param {number} fft_size
+     */
+    constructor(fft_size) {
+        const ret = wasm.wasmspectrogramprocessor_new(fft_size);
+        this.__wbg_ptr = ret >>> 0;
+        WasmSpectrogramProcessorFinalization.register(this, this.__wbg_ptr, this);
+        return this;
     }
 }
 

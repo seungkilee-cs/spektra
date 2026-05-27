@@ -231,8 +231,6 @@ impl SpectrogramProcessor {
 #[cfg(target_arch = "wasm32")]
 mod wasm_exports {
     use super::*;
-    use wasm_bindgen::prelude::*;
-
     #[wasm_bindgen]
     pub struct SpectrogramBatch {
         data: Vec<f32>,
