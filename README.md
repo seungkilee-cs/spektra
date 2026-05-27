@@ -49,7 +49,8 @@ Check out [Spektra](https://www.seungkilee.com/spektra) or install and run it yo
    npm install
    ```
 
-   - Key dependencies: `music-metadata-browser` for audio metadata extraction.
+   - Key dependencies: `music-metadata` for audio metadata extraction.
+   - Build dependency: `wasm-pack` for compiling the Rust audio processor (`cargo install wasm-pack --locked`).
 
 3. Run locally:
 
@@ -57,17 +58,20 @@ Check out [Spektra](https://www.seungkilee.com/spektra) or install and run it yo
    npm start
    ```
 
-   Open http://localhost:3000 in your browser.
+   Open the Vite dev server URL shown in the terminal, usually http://localhost:5173.
 
 4. Build for production:
    ```
    npm run build
    ```
-   Deploy the `build/` folder to any static host (e.g., GitHub Pages, Netlify).
+   Deploy the `dist/` folder to any static host (e.g., GitHub Pages, Netlify).
 
 ## Usage
 
-#1. Open the app in your browser. 2. Drag-and-drop or select an audio file (e.g., MP3). 3. View the generated spectrogram with metadata header. 4. Click the header to expand detailed file info.
+1. Open the app in your browser.
+2. Drag-and-drop or select an audio file.
+3. View the generated spectrogram with metadata header.
+4. Click the header to expand detailed file info.
 
 Example metadata display:
 
@@ -78,8 +82,8 @@ Example metadata display:
 
 - Frontend: React.js for static page web app.
 - Audio Processing: Web Audio API for decoding audio files.
-- Fast Fourier Transform: Custom implementation of FFT in Javascript -> changed to fft-js library -> changed to Rust + WASM custom implementation.
-- Metadata: music-metadata-browser for extracting audio tags.
+- Fast Fourier Transform: Rust + WASM custom implementation, executed in a Web Worker.
+- Metadata: music-metadata for extracting audio tags.
 - Visualization: HTML Canvas for efficient pixel rendering.
 - Build Tools: Vite for fast development and bundling.
 

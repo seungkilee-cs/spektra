@@ -1,61 +1,33 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# Check if the current directory is a git repository
-if [ -d .git ] || git rev-parse --git-dir >/dev/null 2>&1; then
-  echo "This is a git repository. The script will run."
-
-  # Get the current timestamp
-  timestamp=$(date +"%Y-%m-%d_%H_%M_%S")
-
-  # Check if there are any changes that have not been staged
-  if [ -z "$(git status --porcelain)" ]; then
-    echo "No new changes to commit. Exiting."
-    exit 1
-  fi
-
-  # Prompt the user for a commit message
-  read -p "Enter commit message: " commit_message
-
-  # Set the commit message, appending the timestamp if empty
-  if [ -z "$commit_message" ]; then
-    commit_message="autodeploy-$timestamp"
-  else
-    commit_message="$commit_message-$timestamp"
-  fi
-
-  # OPTIONAL - Run custom script
-  npm run deploy
-
-  # Add all changes to git
-  git add .
-
-  # Commit the changes
-  git commit -m "$commit_message"
-
-  # Create the branch name
-  branch_name="autodeploy-$timestamp"
-
-  # Create a new branch and switch to it
-  git checkout -b $branch_name
-
-  # Push the new branch to the remote repository
-  git push origin $branch_name
-
-  # Switch back to the master branch
-  git checkout master
-
-  # Merge the new branch into master
-  git merge $branch_name
-
-  # Push the changes to the master branch at the remote repository
-  git push origin master
-
-  # Delete the local branch
-  git branch -d $branch_name
-
-  # Delete the branch from the remote repository
-  git push origin --delete $branch_name
-
-else
-  echo "This is not a git repository. The script will not run."
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "This is not a git repository."
+  exit 1
 fi
+
+current_branch="$(git branch --show-current)"
+if [[ -z "$current_branch" ]]; then
+  echo "Cannot deploy from a detached HEAD."
+  exit 1
+fi
+
+if [[ -z "$(git status --porcelain)" ]]; then
+  echo "No local changes to commit."
+  exit 0
+fi
+
+read -r -p "Enter commit message: " commit_message
+if [[ -z "$commit_message" ]]; then
+  echo "Commit message is required."
+  exit 1
+fi
+
+npm run lint
+npm test -- --run
+npm run build
+
+git add .
+git commit -m "$commit_message"
+git push -u origin "$current_branch"
+npm run deploy

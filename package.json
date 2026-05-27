@@ -1,7 +1,7 @@
 {
   "name": "spektra",
   "private": true,
-  "homepage": "https://seungkilee-cs.github.io/Spektra",
+  "homepage": "https://seungkilee-cs.github.io/spektra",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -15,7 +15,9 @@
     "start": "vite",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "check": "npm run lint && npm test -- --run && npm run check:rust",
+    "check:rust": "cargo fmt --manifest-path rust-audio-processor/Cargo.toml -- --check && cargo test --manifest-path rust-audio-processor/Cargo.toml && cargo clippy --manifest-path rust-audio-processor/Cargo.toml --all-targets -- -D warnings"
   },
   "dependencies": {
     "music-metadata": "^11.0.2",
