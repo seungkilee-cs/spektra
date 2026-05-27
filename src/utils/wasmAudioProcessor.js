@@ -11,6 +11,8 @@ let wasmInitialized = false;
 let wasmModule = null;
 let workerInstance;
 let workerInitPromise;
+let workerQueue = Promise.resolve();
+let nextWorkerRequestId = 1;
 
 const spectrogramPool = [];
 let pooledFrameLength = 0;
@@ -37,11 +39,9 @@ function detectWasmSimd() {
 }
 
 if (wasmSimdSupported) {
-  console.log("⚙️ WebAssembly SIMD detected — enabling vectorized FFT path");
+  console.log("⚙️ WebAssembly SIMD detected by browser");
 } else {
-  console.info(
-    "⚠️ WebAssembly SIMD unavailable — running scalar FFT path (Rust fallback will be used)",
-  );
+  console.info("⚠️ WebAssembly SIMD unavailable in this browser");
 }
 
 export async function initWasmAudio() {
@@ -83,7 +83,6 @@ async function initWorker() {
 
   if (!workerInitPromise) {
     workerInitPromise = (async () => {
-      await initWasmAudio();
       const worker = new Worker(new URL("../workers/spectrogramWorker.js", import.meta.url), {
         type: "module",
       });
@@ -95,41 +94,105 @@ async function initWorker() {
   return workerInitPromise;
 }
 
-async function processViaWorker(audioData, fftSize, overlap) {
-  const worker = await initWorker();
+function processViaWorkerNow(audioData, fftSize, overlap, { timeStride, freqStride }) {
+  return initWorker().then(
+    (worker) =>
+      new Promise((resolve, reject) => {
+        const profiling = isProfilingEnabled();
+        const requestId = nextWorkerRequestId;
+        nextWorkerRequestId += 1;
 
-  return new Promise((resolve, reject) => {
-    const profiling = isProfilingEnabled();
+        const cleanup = () => {
+          worker.removeEventListener("message", handleMessage);
+          worker.removeEventListener("error", handleError);
+          worker.removeEventListener("messageerror", handleMessageError);
+        };
 
-    const handleMessage = (event) => {
-      const { data } = event;
-      if (!data) {
-        return;
-      }
+        const handleMessage = (event) => {
+          const { data } = event;
+          if (!data || data.requestId !== requestId) {
+            return;
+          }
 
-      worker.removeEventListener("message", handleMessage);
+          cleanup();
 
-      if (!data.success) {
-        reject(new Error(data.message || "Worker processing failed"));
-        return;
-      }
+          if (!data.success) {
+            reject(new Error(data.message || "Worker processing failed"));
+            return;
+          }
 
-      resolve(data);
-    };
+          resolve(data);
+        };
 
-    worker.addEventListener("message", handleMessage);
+        const handleError = (event) => {
+          cleanup();
+          reject(new Error(event.message || "Worker error during spectrogram processing"));
+        };
 
-    worker.postMessage(
-      {
-        type: "process",
-        audioData,
-        fftSize,
-        overlap,
-        profiling,
-      },
-      [audioData.buffer],
-    );
-  });
+        const handleMessageError = () => {
+          cleanup();
+          reject(new Error("Worker could not deserialize spectrogram message"));
+        };
+
+        worker.addEventListener("message", handleMessage);
+        worker.addEventListener("error", handleError);
+        worker.addEventListener("messageerror", handleMessageError);
+
+        worker.postMessage(
+          {
+            type: "process",
+            requestId,
+            audioData,
+            fftSize,
+            overlap,
+            profiling,
+            timeStride,
+            freqStride,
+          },
+          [audioData.buffer],
+        );
+      }),
+  );
+}
+
+function processViaWorker(audioData, fftSize, overlap, strides) {
+  const queued = workerQueue.then(
+    () => processViaWorkerNow(audioData, fftSize, overlap, strides),
+    () => processViaWorkerNow(audioData, fftSize, overlap, strides),
+  );
+  workerQueue = queued.catch(() => {});
+  return queued;
+}
+
+function mixAudioBufferToMono(audioBuffer) {
+  const channelCount = audioBuffer.numberOfChannels || 1;
+  const length = audioBuffer.length;
+
+  if (channelCount === 1) {
+    return new Float32Array(audioBuffer.getChannelData(0));
+  }
+
+  const mixed = new Float32Array(length);
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const channelData = audioBuffer.getChannelData(channel);
+    for (let i = 0; i < length; i += 1) {
+      mixed[i] += channelData[i] / channelCount;
+    }
+  }
+
+  return mixed;
+}
+
+function getChunkLogicalWindowCount(remainingWindows, timeStride) {
+  const maxLogicalWindowsPerChunk = 4096;
+  if (remainingWindows <= maxLogicalWindowsPerChunk) {
+    return remainingWindows;
+  }
+
+  return Math.max(
+    timeStride,
+    Math.floor(maxLogicalWindowsPerChunk / timeStride) * timeStride,
+  );
 }
 
 export async function processAudioWithRustFFT(
@@ -137,13 +200,16 @@ export async function processAudioWithRustFFT(
   fftSize = 1024,
   overlap = 0.5,
   sharedAudioContext = null,
+  options = {},
 ) {
   profileMark("pipeline:start");
   console.time("🦀 Total Rust Audio Processing");
 
+  const maxDisplayFrames = options.maxDisplayFrames ?? 2000;
+  const maxDisplayFreqs = options.maxDisplayFreqs ?? 256;
+
   let audioContext = sharedAudioContext;
   try {
-    // Load audio file
     profileMark("decode:start");
     if (!audioContext) {
       audioContext = await ensureAudioContext();
@@ -156,44 +222,51 @@ export async function processAudioWithRustFFT(
     profileMark("decode:end");
     profileMeasure("decode", "decode:start", "decode:end");
 
-    const audioData = new Float32Array(audioBuffer.getChannelData(0));
+    const audioData = mixAudioBufferToMono(audioBuffer);
+    const audioMetadata = {
+      duration: audioBuffer.duration,
+      sampleRate: audioBuffer.sampleRate,
+      nyquistFreq: audioBuffer.sampleRate / 2,
+      channels: audioBuffer.numberOfChannels,
+    };
 
     console.log(
-      `🎵 Loaded audio: ${audioData.length} samples @ ${audioBuffer.sampleRate}Hz`,
+      `🎵 Loaded audio: ${audioData.length} samples @ ${audioBuffer.sampleRate}Hz (${audioBuffer.numberOfChannels} channel${audioBuffer.numberOfChannels === 1 ? "" : "s"})`,
     );
 
     const hopSize = Math.max(1, Math.floor(fftSize * (1 - overlap)));
     const totalWindows = audioData.length >= fftSize
       ? Math.floor((audioData.length - fftSize) / hopSize) + 1
       : 0;
-    const windowsPerChunk = Math.max(64, Math.min(256, Math.floor(totalWindows / 4) || 256));
+    const sourceFreqBins = fftSize / 2;
+    const timeStride = Math.max(1, Math.ceil(totalWindows / maxDisplayFrames));
+    const freqStride = Math.max(1, Math.ceil(sourceFreqBins / maxDisplayFreqs));
+
+    console.log(
+      `🧮 Spectrogram plan: ${totalWindows} windows, time stride ${timeStride}, frequency stride ${freqStride}`,
+    );
 
     const spectrogram = [];
     let processedWindows = 0;
-    let sampleOffset = 0;
+    let currentWindow = 0;
 
-    while (processedWindows < totalWindows) {
-      const remainingSamples = audioData.length - sampleOffset;
-      const maxWindowsFromSamples = remainingSamples >= fftSize
-        ? Math.floor((remainingSamples - fftSize) / hopSize) + 1
-        : 0;
-      const windowsThisChunk = Math.max(
-        1,
-        Math.min(windowsPerChunk, totalWindows - processedWindows, maxWindowsFromSamples),
-      );
-
-      const chunkSamples = fftSize + hopSize * (windowsThisChunk - 1);
-      const chunkData = audioData.subarray(sampleOffset, sampleOffset + chunkSamples);
-      const chunkCopy = chunkData.slice();
+    while (currentWindow < totalWindows) {
+      const remainingWindows = totalWindows - currentWindow;
+      const logicalWindowsThisChunk = getChunkLogicalWindowCount(remainingWindows, timeStride);
+      const sampleOffset = currentWindow * hopSize;
+      const chunkSamples = fftSize + hopSize * (logicalWindowsThisChunk - 1);
+      const chunkCopy = audioData.slice(sampleOffset, sampleOffset + chunkSamples);
 
       const { spectrogramFlat, numWindows, freqBins: chunkFreqBins, timings } = await processViaWorker(
         chunkCopy,
         fftSize,
         overlap,
+        { timeStride, freqStride },
       );
 
       if (!spectrogramFlat || numWindows === 0) {
-        break;
+        currentWindow += logicalWindowsThisChunk;
+        continue;
       }
 
       profileMark("reshape:start");
@@ -209,20 +282,24 @@ export async function processAudioWithRustFFT(
       profileMeasure("reshape", "reshape:start", "reshape:end");
 
       processedWindows += numWindows;
-      sampleOffset += hopSize * numWindows;
+      currentWindow += logicalWindowsThisChunk;
 
       if (timings) {
         console.log(
-          `👷 Worker chunk processed ${numWindows} windows (${chunkFreqBins} bins) in ${timings.fftMs}ms`,
+          `👷 Worker chunk processed ${numWindows} displayed windows (${chunkFreqBins} bins) in ${timings.fftMs}ms`,
         );
       }
     }
 
     console.log(
-      `🦀 Generated spectrogram: ${spectrogram.length} x ${spectrogram[0]?.length || 0}`,
+      `🦀 Generated spectrogram: ${spectrogram.length} x ${spectrogram[0]?.length || 0} from ${processedWindows} displayed windows`,
     );
 
-    return spectrogram;
+    return {
+      spectrogram,
+      audioMetadata,
+      displayStrides: { timeStride, freqStride },
+    };
   } catch (error) {
     console.error("❌ Rust audio processing failed:", error);
     throw error;
@@ -243,7 +320,6 @@ export async function testRustConnection() {
   const greeting = greet("Spektra");
   console.log("🦀 Rust says:", greeting);
 
-  // Test FFT with small data
   const testData = new Float32Array(1024);
   for (let i = 0; i < 1024; i++) {
     testData[i] = Math.sin((2 * Math.PI * 440 * i) / 44100);

@@ -116,24 +116,17 @@ const SpectrumCanvas = ({ fileUploaded }) => {
           throw new Error("AudioContext could not be initialised");
         }
 
+        const maxDisplayFrames = 2000;
+        const maxDisplayFreqs = 256;
         const wasmStart = performance.now();
-        const spectrogramData = await processAudioWithRustFFT(
-          file,
-          1024,
-          0.5,
-          audioContext,
-        );
+        const { spectrogram: spectrogramData, audioMetadata } =
+          await processAudioWithRustFFT(file, 1024, 0.5, audioContext, {
+            maxDisplayFrames,
+            maxDisplayFreqs,
+          });
         const wasmTime = performance.now() - wasmStart;
 
-        // Get audio metadata for proper time/frequency scaling
-        const arrayBuffer = await file.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-        audioMetadataRef.current = {
-          duration: audioBuffer.duration,
-          sampleRate: audioBuffer.sampleRate,
-          nyquistFreq: audioBuffer.sampleRate / 2,
-        };
+        audioMetadataRef.current = audioMetadata;
 
         console.log(`🦀 Rust+WASM FFT completed in ${wasmTime.toFixed(2)}ms`);
         if (spectrogramData.length > 0) {
@@ -145,10 +138,7 @@ const SpectrumCanvas = ({ fileUploaded }) => {
         // Process and cache the data
         let displayData = spectrogramData.length ? spectrogramData : [];
 
-        // Downsample if needed
-        const maxDisplayFrames = 2000;
-        const maxDisplayFreqs = 256;
-
+        // Safety downsample if a future processor returns more data than requested.
         if (spectrogramData.length > maxDisplayFrames) {
           console.log(
             `⬇️ Downsampling time: ${spectrogramData.length} → ${maxDisplayFrames}`,

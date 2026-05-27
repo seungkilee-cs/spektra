@@ -25,7 +25,15 @@ self.addEventListener("message", async (event) => {
     return;
   }
 
-  const { audioData, fftSize, overlap, profiling } = data;
+  const {
+    audioData,
+    fftSize,
+    overlap,
+    profiling,
+    requestId,
+    timeStride = 1,
+    freqStride = 1,
+  } = data;
 
   try {
     await ensureWasm();
@@ -33,7 +41,12 @@ self.addEventListener("message", async (event) => {
 
     let timings;
     const fftStart = profiling ? performance.now() : 0;
-    const batch = wasmProcessor.process_windows(audioData, overlap, null, null);
+    const batch = wasmProcessor.process_windows(
+      audioData,
+      overlap,
+      timeStride,
+      freqStride,
+    );
     const fftEnd = profiling ? performance.now() : 0;
 
     const spectrogramFlat = new Float32Array(batch.data);
@@ -50,6 +63,7 @@ self.addEventListener("message", async (event) => {
 
     self.postMessage(
       {
+        requestId,
         success: true,
         spectrogramFlat,
         numWindows,
@@ -60,6 +74,7 @@ self.addEventListener("message", async (event) => {
     );
   } catch (error) {
     self.postMessage({
+      requestId,
       success: false,
       message: error?.message || String(error),
     });
