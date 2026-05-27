@@ -1,16 +1,16 @@
-pub mod utils;
+pub mod audio_processor;
 pub mod fft;
 pub mod hann_window;
-pub mod audio_processor;
+pub mod utils;
 
 // Re-export main WASM interface
 pub use audio_processor::*;
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::utils::Complex;
     use crate::fft::fft;
     use crate::hann_window::apply_hann_window;
+    use crate::utils::Complex;
 
     #[test]
     fn test_full_pipeline() {
@@ -24,13 +24,13 @@ mod integration_tests {
 
         // Apply windowing
         apply_hann_window(&mut signal);
-        
+
         // Apply FFT
         fft(&mut signal);
-        
+
         // Calculate magnitudes
         let magnitudes: Vec<f32> = signal.iter().map(|c| c.magnitude()).collect();
-        
+
         // Should have reasonable magnitudes
         assert!(magnitudes.iter().any(|&m| m > 0.0));
     }

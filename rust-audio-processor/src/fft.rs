@@ -1,13 +1,15 @@
-// Rust implementation of FFT -> Cooley-Tukey Radix 2 iteration
-use crate::utils::{bit_reverse, Complex, generate_twiddle_factor, butterfly_operation};
+use crate::utils::{bit_reverse, butterfly_operation, generate_twiddle_factor, Complex};
 
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-use core::arch::wasm32::{f32x4_add, f32x4_mul, f32x4_sub, i32x4_shuffle, v128, v128_load, v128_store};
+use core::arch::wasm32::{
+    f32x4_add, f32x4_mul, f32x4_sub, i32x4_shuffle, v128, v128_load, v128_store,
+};
 
 #[derive(Debug, Clone)]
 pub struct TwiddleCache {
     fft_size: usize,
     stages: Vec<Vec<Complex>>,
+    bit_reversal: Vec<usize>,
 }
 
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -57,11 +59,22 @@ impl TwiddleCache {
         let mut stages = Vec::new();
         let mut len = 2;
         while len <= fft_size {
-            stages.push(generate_twiddle_factor(len));
+            let twiddles = generate_twiddle_factor(len)
+                .into_iter()
+                .take(len / 2)
+                .collect();
+            stages.push(twiddles);
             len <<= 1;
         }
 
-        TwiddleCache { fft_size, stages }
+        let bits = fft_size.trailing_zeros() as usize;
+        let bit_reversal = (0..fft_size).map(|i| bit_reverse(i, bits)).collect();
+
+        Self {
+            fft_size,
+            stages,
+            bit_reversal,
+        }
     }
 
     #[inline]
@@ -75,8 +88,8 @@ impl TwiddleCache {
     }
 
     #[inline]
-    pub fn stages(&self) -> usize {
-        self.stages.len()
+    pub fn bit_reversal(&self) -> &[usize] {
+        &self.bit_reversal
     }
 }
 
@@ -84,9 +97,7 @@ pub fn fft_with_cache(input: &mut [Complex], cache: &TwiddleCache) {
     let n = input.len();
     assert_eq!(cache.fft_size(), n, "Input size must match cache size");
 
-    let bits = n.trailing_zeros() as usize;
-    for i in 0..n {
-        let j = bit_reverse(i, bits);
+    for (i, &j) in cache.bit_reversal().iter().enumerate() {
         if i < j {
             input.swap(i, j);
         }
@@ -123,11 +134,10 @@ pub fn fft_with_cache(input: &mut [Complex], cache: &TwiddleCache) {
             }
 
             #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-            for k in 0..half {
+            for (k, twiddle) in twiddles.iter().copied().enumerate().take(half) {
                 let i = start + k;
                 let j = i + half;
-
-                let (upper, lower) = butterfly_operation(input[i], input[j], twiddles[k]);
+                let (upper, lower) = butterfly_operation(input[i], input[j], twiddle);
                 input[i] = upper;
                 input[j] = lower;
             }
@@ -145,21 +155,17 @@ pub fn fft(input: &mut [Complex]) {
 
 pub fn ifft(input: &mut [Complex]) {
     let n = input.len();
-    // Conjugate All Inputs
     for c in input.iter_mut() {
         c.imag = -c.imag;
     }
 
-    // Forward fft
     fft(input);
 
-    // Conjugate Again and Scale
     for c in input.iter_mut() {
         c.real /= n as f32;
         c.imag = -c.imag / n as f32;
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -168,68 +174,64 @@ mod tests {
 
     #[test]
     fn test_fft_impulse() {
-        // Test impulse response: [1, 0, 0, 0]
         let mut input = vec![
             Complex::new(1.0, 0.0),
             Complex::new(0.0, 0.0),
             Complex::new(0.0, 0.0),
             Complex::new(0.0, 0.0),
         ];
-        
+
         fft(&mut input);
-        
-        // Impulse should result in all 1's in frequency domain
-        for i in 0..4 {
-            assert!((input[i].real - 1.0).abs() < 1e-6, "Real part at {}: {}", i, input[i].real);
-            assert!(input[i].imag.abs() < 1e-6, "Imag part at {}: {}", i, input[i].imag);
+
+        for (i, bin) in input.iter().enumerate().take(4) {
+            assert!(
+                (bin.real - 1.0).abs() < 1e-6,
+                "Real part at {i}: {}",
+                bin.real
+            );
+            assert!(bin.imag.abs() < 1e-6, "Imag part at {i}: {}", bin.imag);
         }
     }
 
     #[test]
     fn test_fft_dc() {
-        // Test DC signal: [1, 1, 1, 1]
         let mut input = vec![
             Complex::new(1.0, 0.0),
             Complex::new(1.0, 0.0),
             Complex::new(1.0, 0.0),
             Complex::new(1.0, 0.0),
         ];
-        
+
         fft(&mut input);
-        
-        // DC should have energy only in first bin
+
         assert!((input[0].real - 4.0).abs() < 1e-6);
         assert!(input[0].imag.abs() < 1e-6);
-        
-        // Other bins should be zero
-        for i in 1..4 {
-            assert!(input[i].magnitude() < 1e-6, "Bin {} should be zero but got {}", i, input[i].magnitude());
+
+        for (i, bin) in input.iter().enumerate().take(4).skip(1) {
+            assert!(
+                bin.magnitude() < 1e-6,
+                "Bin {i} should be zero but got {}",
+                bin.magnitude()
+            );
         }
     }
 
     #[test]
     fn test_fft_roundtrip() {
-        // Test FFT -> IFFT roundtrip
         let original = vec![
             Complex::new(1.0, 0.5),
             Complex::new(2.0, -1.0),
             Complex::new(0.5, 2.0),
             Complex::new(-1.0, 0.5),
         ];
-        
+
         let mut input = original.clone();
-        
-        // Forward FFT
         fft(&mut input);
-        
-        // Inverse FFT
         ifft(&mut input);
-        
-        // Should match original (within floating point precision)
+
         for i in 0..4 {
             assert!((input[i].real - original[i].real).abs() < 1e-6);
             assert!((input[i].imag - original[i].imag).abs() < 1e-6);
         }
     }
 }
-

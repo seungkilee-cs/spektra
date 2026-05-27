@@ -1,20 +1,16 @@
-// Audio Processing for Computing Spectogram (WASM Interface)
-use crate::utils::Complex;
 use crate::fft::{fft_with_cache, TwiddleCache};
-use crate::hann_window::apply_hann_window;
+use crate::hann_window::generate_hann_window;
+use crate::utils::Complex;
 
-// Only include wasm-bindgen stuff when compiling for WASM target
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-// set up panic hook for better WASM debugging (WASM only)
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();
 }
 
-// import console.log for debugging (WASM only) ->
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 extern "C" {
@@ -22,47 +18,55 @@ extern "C" {
     fn log(s: &str);
 }
 
-// Console logging macro - works in both WASM and rust 
 macro_rules! console_log {
     ($($t:tt)*) => {
         #[cfg(target_arch = "wasm32")]
         log(&format_args!($($t)*).to_string());
-        
+
         #[cfg(not(target_arch = "wasm32"))]
         println!($($t)*);
     };
 }
 
-// Core FFT processor that works in both WASM and native environments
 pub struct SpectrogramProcessor {
     fft_size: usize,
     twiddle_cache: TwiddleCache,
     buffer: Vec<Complex>,
+    hann_window: Vec<f32>,
+    dc_magnitude_scale: f32,
+    ac_magnitude_scale: f32,
     time_stride: usize,
     freq_stride: usize,
 }
 
 impl SpectrogramProcessor {
-    // Create new SpectrogramProcessor
     pub fn new(fft_size: usize) -> SpectrogramProcessor {
         console_log!("Creating SpectrogramProcessor with FFT size: {}", fft_size);
         assert!(fft_size.is_power_of_two(), "FFT size must be power of 2");
-        let twiddle_cache = TwiddleCache::new(fft_size);
-        let buffer = vec![Complex::new(0.0, 0.0); fft_size];
+
+        let hann_window = generate_hann_window(fft_size);
+        let window_sum = hann_window.iter().sum::<f32>();
+        let dc_magnitude_scale = if window_sum > 0.0 {
+            1.0 / window_sum
+        } else {
+            1.0
+        };
+        let ac_magnitude_scale = dc_magnitude_scale * 2.0;
+
         SpectrogramProcessor {
             fft_size,
-            twiddle_cache,
-            buffer,
+            twiddle_cache: TwiddleCache::new(fft_size),
+            buffer: vec![Complex::new(0.0, 0.0); fft_size],
+            hann_window,
+            dc_magnitude_scale,
+            ac_magnitude_scale,
             time_stride: 1,
             freq_stride: 1,
         }
     }
 
     pub fn with_strides(mut self, time_stride: usize, freq_stride: usize) -> Self {
-        assert!(time_stride >= 1, "time_stride must be >= 1");
-        assert!(freq_stride >= 1, "freq_stride must be >= 1");
-        self.time_stride = time_stride;
-        self.freq_stride = freq_stride;
+        self.set_strides(time_stride, freq_stride);
         self
     }
 
@@ -81,101 +85,149 @@ impl SpectrogramProcessor {
         self.freq_stride
     }
 
-    // Process a single audio window and return magnitudes
-    pub fn process_window(&mut self, audio_data: &[f32]) -> Vec<f32> {
-        if audio_data.len() != self.fft_size {
-            console_log!("⚠️ Audio data length {} != fft_size {}", audio_data.len(), self.fft_size);
-            return Vec::new();
+    fn hop_size(&self, overlap: f32) -> Option<usize> {
+        if !overlap.is_finite() || !(0.0..1.0).contains(&overlap) {
+            return None;
         }
 
-        // Copy samples into reusable complex buffer
-        for (slot, &sample) in self.buffer.iter_mut().zip(audio_data.iter()) {
-            slot.real = sample;
+        Some(((self.fft_size as f32) * (1.0 - overlap)).floor().max(1.0) as usize)
+    }
+
+    fn copy_window_to_buffer(&mut self, audio_data: &[f32]) -> bool {
+        if audio_data.len() != self.fft_size {
+            console_log!(
+                "⚠️ Audio data length {} != fft_size {}",
+                audio_data.len(),
+                self.fft_size
+            );
+            return false;
+        }
+
+        for ((slot, &sample), &window) in self
+            .buffer
+            .iter_mut()
+            .zip(audio_data.iter())
+            .zip(self.hann_window.iter())
+        {
+            slot.real = sample * window;
             slot.imag = 0.0;
         }
 
-        // Apply Hann window
-        apply_hann_window(&mut self.buffer);
+        true
+    }
 
-        // Perform FFT using cached twiddles
+    fn process_window_into(
+        &mut self,
+        audio_data: &[f32],
+        freq_stride: usize,
+        output: &mut Vec<f32>,
+    ) {
+        if !self.copy_window_to_buffer(audio_data) {
+            return;
+        }
+
         fft_with_cache(&mut self.buffer, &self.twiddle_cache);
 
-        // Calculate magnitudes (first half due to symmetry)
-        let magnitudes: Vec<f32> = self.buffer[0..self.fft_size / 2]
-            .iter()
-            .map(|c| c.magnitude())
-            .collect();
-        
+        let freq_bins = self.fft_size / 2;
+        for bin in (0..freq_bins).step_by(freq_stride) {
+            let scale = if bin == 0 {
+                self.dc_magnitude_scale
+            } else {
+                self.ac_magnitude_scale
+            };
+            output.push(self.buffer[bin].magnitude() * scale);
+        }
+    }
+
+    pub fn process_window(&mut self, audio_data: &[f32]) -> Vec<f32> {
+        let mut magnitudes = Vec::with_capacity(self.fft_size / 2);
+        self.process_window_into(audio_data, 1, &mut magnitudes);
         magnitudes
     }
 
-    // Process complete spectrogram from audio data
     pub fn compute_spectrogram(&mut self, audio_data: &[f32], overlap: f32) -> Vec<f32> {
-        
-        console_log!("Starting spectrogram computation for {} samples", audio_data.len());
+        console_log!(
+            "Starting spectrogram computation for {} samples",
+            audio_data.len()
+        );
 
-        let hop_size = ((self.fft_size as f32) * (1.0 - overlap)) as usize;
+        let Some(hop_size) = self.hop_size(overlap) else {
+            console_log!("Invalid overlap: {}", overlap);
+            return Vec::new();
+        };
+
         let num_windows = if audio_data.len() >= self.fft_size {
             (audio_data.len() - self.fft_size) / hop_size + 1
         } else {
             0
         };
-        
-        console_log!("Processing {} windows with hop size {}", num_windows, hop_size);
-        
-        let mut spectrogram_flat = Vec::new();
-        
+
+        console_log!(
+            "Processing {} windows with hop size {}",
+            num_windows,
+            hop_size
+        );
+
+        let mut spectrogram_flat = Vec::with_capacity(num_windows * (self.fft_size / 2));
+
         for window_idx in 0..num_windows {
             let start_idx = window_idx * hop_size;
             let end_idx = start_idx + self.fft_size;
+            self.process_window_into(&audio_data[start_idx..end_idx], 1, &mut spectrogram_flat);
 
-            if end_idx <= audio_data.len() {
-                let window_slice = &audio_data[start_idx..end_idx];
-                let magnitudes = self.process_window(window_slice);
-                spectrogram_flat.extend(magnitudes);
-            }
-            
-            // Progress logging
             if num_windows > 100 && window_idx % (num_windows / 10) == 0 {
                 console_log!("Progress: {}/{} windows", window_idx, num_windows);
             }
         }
-        
-        console_log!("Spectrogram generation complete: {} x {}", num_windows, self.fft_size / 2);
+
+        console_log!(
+            "Spectrogram generation complete: {} x {}",
+            num_windows,
+            self.fft_size / 2
+        );
         spectrogram_flat
     }
 
-    pub fn process_windows(&mut self, audio_data: &[f32], overlap: f32) -> (Vec<f32>, usize, usize) {
-        let hop_size = ((self.fft_size as f32) * (1.0 - overlap)) as usize;
+    pub fn process_windows(
+        &mut self,
+        audio_data: &[f32],
+        overlap: f32,
+    ) -> (Vec<f32>, usize, usize) {
         let freq_bins = self.fft_size / 2;
+        let reduced_bins = freq_bins.div_ceil(self.freq_stride);
+
+        let Some(hop_size) = self.hop_size(overlap) else {
+            return (Vec::new(), 0, reduced_bins);
+        };
 
         if audio_data.len() < self.fft_size {
-            return (Vec::new(), 0, freq_bins);
+            return (Vec::new(), 0, reduced_bins);
         }
 
         let total_windows = (audio_data.len() - self.fft_size) / hop_size + 1;
         let num_windows = (0..total_windows).step_by(self.time_stride).count();
-        let reduced_bins = (freq_bins + self.freq_stride - 1) / self.freq_stride;
         console_log!(
-            "process_windows batching {} logical windows (stride {})",
+            "process_windows batching {} logical windows (time stride {}, freq stride {})",
             num_windows,
-            self.time_stride
+            self.time_stride,
+            self.freq_stride
         );
         let mut result = Vec::with_capacity(num_windows * reduced_bins);
 
         for window_idx in (0..total_windows).step_by(self.time_stride) {
             let start_idx = window_idx * hop_size;
             let end_idx = start_idx + self.fft_size;
-            let window_slice = &audio_data[start_idx..end_idx];
-            let magnitudes = self.process_window(window_slice);
-            result.extend(magnitudes.into_iter().step_by(self.freq_stride));
+            self.process_window_into(
+                &audio_data[start_idx..end_idx],
+                self.freq_stride,
+                &mut result,
+            );
         }
 
         (result, num_windows, reduced_bins)
     }
 }
 
-// WASM-specific exports (only compiled for WASM target)
 #[cfg(target_arch = "wasm32")]
 mod wasm_exports {
     use super::*;
@@ -206,7 +258,6 @@ mod wasm_exports {
         }
     }
 
-    // WASM-exported FFT processor
     #[wasm_bindgen]
     pub struct WasmSpectrogramProcessor {
         inner: SpectrogramProcessor,
@@ -253,7 +304,6 @@ mod wasm_exports {
         }
     }
 
-    // Simple test functions for WASM integration
     #[wasm_bindgen]
     pub fn greet(name: &str) -> String {
         console_log!("🦀 Rust greeting function called");
@@ -267,11 +317,9 @@ mod wasm_exports {
     }
 }
 
-// Re-export WASM functions only when compiling for WASM
 #[cfg(target_arch = "wasm32")]
 pub use wasm_exports::*;
 
-// Tests work on both WASM and native targets
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,36 +333,39 @@ mod tests {
     #[test]
     fn test_process_window() {
         let mut processor = SpectrogramProcessor::new(8);
-        
-        // Create test signal (simple sine wave)
-        let mut test_signal = Vec::new();
-        for i in 0..8 {
-            let sample = (2.0 * std::f32::consts::PI * i as f32 / 8.0).sin();
-            test_signal.push(sample);
-        }
-        
+        let test_signal: Vec<f32> = (0..8)
+            .map(|i| (2.0 * std::f32::consts::PI * i as f32 / 8.0).sin())
+            .collect();
+
         let result = processor.process_window(&test_signal);
-        assert_eq!(result.len(), 4); // Half of FFT size
-        
-        // Result should have some energy
-        let total_energy: f32 = result.iter().sum();
-        assert!(total_energy > 0.0);
+        assert_eq!(result.len(), 4);
+        assert!(result.iter().sum::<f32>() > 0.0);
+    }
+
+    #[test]
+    fn test_full_scale_bin_centered_tone_normalizes_near_one() {
+        let mut processor = SpectrogramProcessor::new(1024);
+        let test_signal: Vec<f32> = (0..1024)
+            .map(|i| (2.0 * std::f32::consts::PI * 8.0 * i as f32 / 1024.0).sin())
+            .collect();
+
+        let result = processor.process_window(&test_signal);
+        let peak = result.iter().copied().fold(0.0_f32, f32::max);
+
+        assert!((peak - 1.0).abs() < 0.02, "peak was {peak}");
     }
 
     #[test]
     fn test_compute_spectrogram() {
         let mut processor = SpectrogramProcessor::new(8);
-        
-        // Create longer test signal
         let test_signal: Vec<f32> = (0..32)
             .map(|i| (2.0 * std::f32::consts::PI * i as f32 / 32.0).sin())
             .collect();
-        
+
         let result = processor.compute_spectrogram(&test_signal, 0.5);
-        
-        // Should have multiple windows of results
-        assert!(result.len() > 4); // More than one window
-        assert_eq!(result.len() % 4, 0); // Multiple of frequency bins
+
+        assert!(result.len() > 4);
+        assert_eq!(result.len() % 4, 0);
     }
 
     #[test]
@@ -349,7 +400,6 @@ mod tests {
 
     #[test]
     fn test_invalid_fft_size() {
-        // This should panic because 7 is not a power of 2
         let result = std::panic::catch_unwind(|| {
             SpectrogramProcessor::new(7);
         });
@@ -362,5 +412,16 @@ mod tests {
         let empty_data = vec![];
         let result = processor.compute_spectrogram(&empty_data, 0.5);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_invalid_overlap_returns_empty_safely() {
+        let mut processor = SpectrogramProcessor::new(8);
+        let audio_data = vec![0.0; 32];
+
+        assert!(processor.compute_spectrogram(&audio_data, 1.0).is_empty());
+        assert!(processor
+            .compute_spectrogram(&audio_data, f32::NAN)
+            .is_empty());
     }
 }
