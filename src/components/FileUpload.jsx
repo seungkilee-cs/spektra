@@ -1,32 +1,27 @@
 import React, { useState, useRef } from "react";
 import { debugLog, debugError } from "../utils/debug";
+import {
+  SUPPORTED_AUDIO_FORMATS,
+  getAudioAcceptAttribute,
+  isSupportedAudioFile,
+} from "../utils/audioFileSupport";
 import "../styles/FileUpload.css";
 
 const FileUpload = ({ onFileSelect }) => {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
 
-  // Expandable file formats configuration
-  const supportedFormats = [
-    { type: "audio/mpeg", extension: "MP3", color: "#4285f4" },
-    { type: "audio/flac", extension: "FLAC", color: "#0f9d58" },
-    { type: "audio/wav", extension: "WAV", color: "#9c27b0" },
-    { type: "audio/ogg", extension: "OGG", color: "#f44336" },
-    { type: "audio/mp4", extension: "AAC", color: "#ff9800" },
-    { type: "audio/m4a", extension: "M4A", color: "#ff9800" },
-    { type: "audio/x-m4a", extension: "M4A", color: "#ff9800" },
-    { type: "audio/aac", extension: "AAC", color: "#ff9800" },
-    { type: "audio/x-aiff", extension: "AIFF", color: "#795548" },
-    { type: "audio/webm", extension: "WEBM", color: "#607d8b" },
-    { type: "audio/opus", extension: "OPUS", color: "#e91e63" },
-  ];
+  const supportedFormats = SUPPORTED_AUDIO_FORMATS.map((format) => ({
+    extension: format.label,
+    color: format.color,
+  }));
 
-  const acceptedTypes = supportedFormats.map((format) => format.type);
+  const acceptedTypes = getAudioAcceptAttribute();
 
   const handleFiles = (selectedFiles) => {
     const selectedFile = selectedFiles[0];
 
-    if (acceptedTypes.includes(selectedFile.type)) {
+    if (isSupportedAudioFile(selectedFile)) {
       debugLog("File added successfully:", {
         name: selectedFile.name,
         type: selectedFile.type,
@@ -86,7 +81,7 @@ const FileUpload = ({ onFileSelect }) => {
           className="file-input"
           multiple={false}
           onChange={handleChange}
-          accept={acceptedTypes.join(",")}
+          accept={acceptedTypes}
         />
 
         <div className="upload-content">
@@ -103,7 +98,7 @@ const FileUpload = ({ onFileSelect }) => {
           <div className="file-types">
             {supportedFormats.map((format, index) => (
               <span
-                key={format.extension}
+                key={`${format.extension}-${index}`}
                 className="file-type-badge"
                 style={{
                   "--badge-color": format.color,

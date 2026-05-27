@@ -3,6 +3,7 @@ import FileUpload from "./components/FileUpload";
 import AudioMetadataHeader from "./components/AudioMetadataHeader";
 import SpectrumCanvas from "./components/SpectrumCanvas";
 import { extractAudioMetadata } from "./utils/formatMetadata";
+import { isSupportedAudioFile, isUnsupportedAlacMetadata } from "./utils/audioFileSupport";
 import { debugLog, debugError } from "./utils/debug";
 import "./App.css";
 
@@ -18,23 +19,11 @@ function App() {
       setFile(null);
       setMetadata(null);
 
-      // Define supported audio types (expandable)
-      const supportedTypes = [
-        "audio/mpeg",
-        "audio/mp4",
-        "audio/m4a",
-        "audio/x-m4a",
-        "audio/aac",
-        "audio/flac",
-        "audio/wav",
-        "audio/ogg",
-        "audio/x-aiff",
-        "audio/webm",
-        "audio/opus",
-      ];
-
-      if (selectedFile.type && !supportedTypes.includes(selectedFile.type)) {
-        debugError("Unsupported file type:", selectedFile.type);
+      if (!isSupportedAudioFile(selectedFile)) {
+        debugError("Unsupported file type:", {
+          name: selectedFile.name,
+          type: selectedFile.type,
+        });
         alert("Please select a supported audio file format.");
         return;
       }
@@ -42,10 +31,7 @@ function App() {
       const metadata = await extractAudioMetadata(selectedFile);
       debugLog("Extracted metadata:", metadata);
 
-      const codecLower = (metadata?.codec || "").toLowerCase();
-      const containerLower = (metadata?.container || "").toLowerCase();
-
-      if (codecLower.includes("alac") || containerLower.includes("alac")) {
+      if (isUnsupportedAlacMetadata(metadata)) {
         debugError("Unsupported ALAC codec detected");
         alert(
           "Apple Lossless (ALAC) files are not currently supported. Please upload MP3, AAC/M4A, FLAC, WAV, OGG, AIFF, WebM, or Opus."
